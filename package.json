@@ -1,0 +1,25 @@
+{
+    "name": "baby-sleep-tracker",
+    "version": "1.0.0",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "buffer": "^6.0.3",
+        "chart.js": "^4.5.1",
+        "crypto-browserify": "^3.12.1",
+        "dotenv": "^17.2.1",
+        "firebase": "^12.2.1",
+        "os-browserify": "^0.3.0",
+        "path-browserify": "^1.0.1",
+        "process": "^0.11.10",
+        "stream-browserify": "^3.0.0",
+        "vm-browserify": "^1.1.2"
+    },
+    "devDependencies": {
+        "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "vite": "^7.1.5"
+    }
+}
