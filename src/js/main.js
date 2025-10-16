@@ -231,14 +231,14 @@ const updateUI = (entry) => {
     }
 
     // 6. Cập nhật Tư thế Ngủ
-    const positionMap = { supine: "Nằm ngửa", prone: "Nằm sấp", side: "Nằm nghiêng", back: "N/A" };
+    const positionMap = { supine: "Ngửa", prone: "Sấp", side: "Nghiêng", back: "N/A" };
     const positionText = positionMap[entry.sleepPosition] || "N/A";
     const positionClass =
         {
             supine: "alert-success",
             prone: "alert-danger",
             side: "alert-warning",
-        }[entry.sleepPosition] || "alert-info"; 
+        }[entry.sleepPosition] || "alert-info";
     setBadge("sleep-position", positionText, positionClass);
 
     // 7. Cập nhật Timestamp
@@ -370,72 +370,6 @@ const renderCharts = (records) => {
     }
 };
 
-const updateSleepData = async (status, temperature) => {
-    if (!auth.currentUser) {
-        showAlertBanner("Vui lòng đăng nhập để cập nhật dữ liệu.", "warning");
-        return;
-    }
-
-    try {
-        const envTemp = parseNumber($("env-temp")?.value) || parseNumber($("room-temperature")?.textContent) || 26.5;
-        const envHum = parseNumber($("env-hum")?.value) || parseNumber($("room-humidity")?.textContent) || 60;
-        const babyTemp = parseNumber($("baby-temp")?.value) || parseNumber($("baby-temperature")?.textContent) || 36.7;
-        const pos = $("sleep-position-select")?.value || $("sleep-position")?.textContent || "back";
-        const crying = !!$("is-crying-input")?.checked || $("is-crying")?.textContent === "Có";
-        const currentStatus = $("sleep-status-select")?.value || status;
-
-        const payload = {
-            environmentTemperature: envTemp,
-            environmentHumidity: envHum,
-            babyTemperature: babyTemp,
-            sleepPosition: pos,
-            isCrying: crying,
-            status: currentStatus,
-            temperature: babyTemp,
-            timestamp: new Date().toISOString(),
-            userId: auth.currentUser.uid,
-        };
-
-        const newRef = push(REFS.sleepData);
-        await set(newRef, payload);
-        console.log("Dữ liệu đã được cập nhật:", payload);
-    } catch (error) {
-        showAlertBanner("Lỗi khi cập nhật dữ liệu. Vui lòng kiểm tra Firebase.", "danger");
-        console.error("Lỗi khi cập nhật dữ liệu:", error);
-    }
-};
-
-const handleAddEvent = async () => {
-    if (!auth.currentUser) {
-        showAlertBanner("Vui lòng đăng nhập để thêm sự kiện.", "warning");
-        return;
-    }
-
-    const type = $("event-type")?.value;
-    const note = $("event-note")?.value.trim();
-
-    if (!note) {
-        showAlertBanner("Vui lòng nhập nội dung chi tiết cho sự kiện.", "warning");
-        return;
-    }
-
-    const payload = {
-        userId: auth.currentUser.uid,
-        type: type,
-        note: note,
-        timestamp: new Date().toISOString(),
-    };
-
-    try {
-        await push(REFS.userEvents, payload);
-        showAlertBanner(`Đã thêm sự kiện: ${type} - ${note}`, "success");
-        if ($("event-note")) $("event-note").value = "";
-    } catch (error) {
-        showAlertBanner("Lỗi khi thêm sự kiện. Vui lòng thử lại.", "danger");
-        console.error("Lỗi thêm sự kiện thủ công:", error);
-    }
-};
-
 const handleSignup = async () => {
     const email = $("auth-email")?.value;
     const password = $("auth-password")?.value;
@@ -522,6 +456,7 @@ const stopDataListener = () => {
 const toggleUI = (user) => {
     const authScreen = $("auth-screen");
     const mainContent = $("main-content");
+    const banner = $("alert-banner");
     let logoutBtn = $("logout-btn");
     const body = document.body;
 
@@ -550,6 +485,8 @@ const toggleUI = (user) => {
         if (authScreen) authScreen.style.display = "block";
         if (mainContent) mainContent.style.display = "none";
         if (logoutBtn) logoutBtn.style.display = "none";
+        if (banner) banner.style.display = "none";
+
         console.log("User signed out.");
 
         stopDataListener();
@@ -579,20 +516,4 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Logout error:", error);
         }
     });
-
-    $("add-event-btn")?.addEventListener("click", handleAddEvent);
-
-    const temperature = 22;
-
-    $("sleep-button")?.addEventListener("click", () => updateSleepData("sleeping", temperature));
-    $("awake-button")?.addEventListener("click", () => updateSleepData("awake", temperature));
-
-    $("update-button")?.addEventListener("click", () => {
-        const status = $("sleep-status-select")?.value || "sleeping";
-        updateSleepData(status, temperature);
-    });
-
-    $("push-full-button")?.addEventListener("click", () => updateSleepData("sleeping", 36.7));
 });
-
-console.log("Ứng dụng đang chạy (realtime) với cấu trúc mới.");

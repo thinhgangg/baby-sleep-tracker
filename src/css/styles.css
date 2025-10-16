@@ -567,6 +567,10 @@ canvas {
         font-size: 1.5rem;
     }
 
+    .info-label {
+        font-size: 0.7rem;
+    }
+
     .main-content {
         padding: var(--spacing-md);
     }
