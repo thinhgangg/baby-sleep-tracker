@@ -132,7 +132,7 @@ const checkBabyTemperature = (temp) => {
         return {
             class: "alert-danger",
             alert: {
-                message: `🔥 CẢNH BÁO: Nhiệt độ em bé ĐANG CAO! (${temp}°C) 🔥`,
+                message: `🔥 CẢNH BÁO: Nhiệt độ em bé ĐANG CAO! (${temp}°C)`,
                 type: "danger",
             },
         };
@@ -142,7 +142,7 @@ const checkBabyTemperature = (temp) => {
         return {
             class: "alert-warning",
             alert: {
-                message: `⚠️ Nhiệt độ em bé cần chú ý: (${temp}°C) ⚠️`,
+                message: `⚠️ Nhiệt độ em bé cần chú ý: (${temp}°C)`,
                 type: "warning",
             },
         };
@@ -233,7 +233,13 @@ const updateUI = (entry) => {
     // 6. Cập nhật Tư thế Ngủ
     const positionMap = { supine: "Nằm ngửa", prone: "Nằm sấp", side: "Nằm nghiêng", back: "N/A" };
     const positionText = positionMap[entry.sleepPosition] || "N/A";
-    setBadge("sleep-position", positionText, "alert-info");
+    const positionClass =
+        {
+            supine: "alert-success",
+            prone: "alert-danger",
+            side: "alert-warning",
+        }[entry.sleepPosition] || "alert-info"; 
+    setBadge("sleep-position", positionText, positionClass);
 
     // 7. Cập nhật Timestamp
     setText("timestamp", entry.timestamp ? formatTimestamp(entry.timestamp, true) : "N/A");
