@@ -8,7 +8,7 @@
 
 * **Theo dõi Trực tiếp (Real-time Monitoring):** Cập nhật ngay lập tức các chỉ số quan trọng như nhiệt độ bé, trạng thái ngủ, và tình trạng khóc.
 * **Cảnh báo Khẩn cấp Thông minh:** Cảnh báo **ngay lập tức** về các tình trạng nguy hiểm (sốt, khóc) và các điều kiện môi trường bất thường.
-* **Xem Camera:** Tích hợp luồng video/WebRTC (được mô phỏng bằng video tĩnh trong bản demo) để theo dõi trực quan em bé.
+* **Xem Camera:** Tích hợp luồng video/WebRTC để theo dõi trực quan em bé.
 * **Phân tích Xu hướng:** Biểu đồ hiển thị nhiệt độ em bé, nhiệt độ phòng và độ ẩm trong 24 giờ gần nhất sử dụng **Chart.js**.
 * **Xác thực Người dùng:** Đăng nhập/Đăng ký an toàn bằng **Firebase Authentication**.
 
@@ -18,7 +18,7 @@
 
 * **Frontend:** HTML5, CSS3, JavaScript (ES Modules)
 * **Data/Backend:** **Firebase Realtime Database**
-* **Authentication:** **Firebase Authentication** (Email/Password)
+* **Authentication:** **Firebase Authentication**
 * **Charting:** **Chart.js**
 * **Build Tool:** **Vite**
 
@@ -33,7 +33,7 @@ Cài đặt **Node.js** (phiên bản LTS) và **npm** (hoặc yarn/pnpm).
 ### 2. Nhân bản Repository
 
 ```bash
-git clone <URL_REPO_CỦA_BẠN>
+git clone https://github.com/thinhgangg/baby-sleep-tracker.git
 cd baby-sleep-tracker
 ```
 
