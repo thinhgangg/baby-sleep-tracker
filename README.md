@@ -26,34 +26,33 @@
 
 ## 🚀 Hướng dẫn Cài đặt & Chạy Dự án
 
-### 1. Yêu cầu
+### 1. Prerequisites
 
 Cài đặt **Node.js** (phiên bản LTS) và **npm** (hoặc yarn/pnpm).
 
-### 2. Nhân bản Repository
+### 2. Clone Repository
 
 ```bash
 git clone https://github.com/thinhgangg/baby-sleep-tracker.git
 cd baby-sleep-tracker
 ```
 
-### 3. Cài đặt Dependencies
+### 3. Install Dependencies
 
 ```bash
 npm install
 # hoặc yarn install
 ```
 
-### 4. Cấu hình Firebase
+### 4. Firebase Configuration
 
 Tạo một dự án Firebase.
 
 Tạo tệp .env trong thư mục gốc.
 
-Thêm các khóa API của dự án Firebase (tìm thấy trong Cài đặt Dự án > Cấu hình Ứng dụng):
+Thêm các khóa API của dự án Firebase (tìm thấy trong Project settings > SDK setup and configuration):
 
 ```env
-# Firebase Configuration
 VITE_FIREBASE_API_KEY="YOUR_API_KEY"
 VITE_FIREBASE_AUTH_DOMAIN="YOUR_AUTH_DOMAIN"
 VITE_FIREBASE_PROJECT_ID="YOUR_PROJECT_ID"
@@ -64,7 +63,7 @@ VITE_FIREBASE_DATABASE_URL="YOUR_DATABASE_URL"
 # Ví dụ: https://baby-tracker-default-rtdb.firebaseio.com
 ```
 
-### 5. Khởi chạy Ứng dụng
+### 5. Launch the Application
 ```bash
 npm run dev
 # hoặc yarn dev
