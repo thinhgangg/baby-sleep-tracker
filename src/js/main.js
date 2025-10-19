@@ -1,10 +1,13 @@
 // src/js/main.js
 
 import { database, ref, set, push, auth } from "./firebase-config.js";
-import { onValue, query, limitToLast } from "firebase/database";
+import { onValue, query, limitToLast, get } from "firebase/database";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { startWebRTCStream, closeWebRTCStream } from "./webrtc-stream.js";
 import Chart from "chart.js/auto";
+import annotationPlugin from "chartjs-plugin-annotation";
+
+Chart.register(annotationPlugin);
 
 const REFS = {
     sleepData: ref(database, "sleepData"),
@@ -25,14 +28,9 @@ let charts = {
     babyTemp: null,
     environment: null,
 };
+let currentDataRange = 1;
 
 const $ = (id) => document.getElementById(id);
-
-const parseNumber = (text) => {
-    if (!text) return null;
-    const n = parseFloat(String(text).replace(/[^\d\.\-]/g, ""));
-    return Number.isNaN(n) ? null : n;
-};
 
 const formatTimestamp = (isoString, full = true) => {
     if (!isoString) return "N/A";
@@ -281,12 +279,187 @@ const displayHistory = (data) => {
     });
 };
 
+function renderBabyTempChart(ctx, labels, temps) {
+    return new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Nhiệt độ Bé (°C)",
+                    data: temps,
+                    borderColor: "#dc3545",
+                    backgroundColor: "rgba(220, 53, 69, 0.1)",
+                    tension: 0.25,
+                    pointRadius: 3,
+                    fill: true,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            animation: {
+                duration: 1000,
+                easing: "easeInOutQuad",
+            },
+            plugins: {
+                legend: { display: true },
+                annotation: {
+                    annotations: {
+                        threshold: {
+                            type: "line",
+                            yMin: 37.5,
+                            yMax: 37.5,
+                            borderColor: "red",
+                            borderWidth: 2,
+                            borderDash: [6, 6],
+                            label: {
+                                content: "Ngưỡng cảnh báo (37.5°C)",
+                                enabled: true,
+                                position: "end",
+                                backgroundColor: "rgba(220,53,69,0.8)",
+                                color: "#fff",
+                            },
+                        },
+                    },
+                },
+            },
+            scales: {
+                y: {
+                    title: { display: true, text: "Nhiệt độ (°C)" },
+                    suggestedMin: 35,
+                    suggestedMax: 39,
+                },
+            },
+        },
+    });
+}
+
+function renderEnvChart(ctx, labels, temps, hums) {
+    return new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Nhiệt độ Phòng (°C)",
+                    data: temps,
+                    borderColor: "#0d74b1",
+                    backgroundColor: "rgba(13, 116, 177, 0.1)",
+                    tension: 0.25,
+                    yAxisID: "y1",
+                },
+                {
+                    label: "Độ ẩm Phòng (%)",
+                    data: hums,
+                    borderColor: "#28a745",
+                    backgroundColor: "rgba(40, 167, 69, 0.1)",
+                    tension: 0.25,
+                    yAxisID: "y2",
+                    borderDash: [5, 5],
+                    pointStyle: "rect",
+                    pointRadius: 4,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            animation: {
+                duration: 1000,
+                easing: "easeInOutQuad",
+            },
+            plugins: {
+                legend: { display: true, position: "top" },
+            },
+            scales: {
+                y1: {
+                    type: "linear",
+                    position: "left",
+                    title: { display: true, text: "Nhiệt độ (°C)" },
+                    suggestedMin: 30,
+                    suggestedMax: 34,
+                },
+                y2: {
+                    type: "linear",
+                    position: "right",
+                    title: { display: true, text: "Độ ẩm (%)" },
+                    suggestedMin: 65,
+                    suggestedMax: 75,
+                    grid: { drawOnChartArea: false },
+                },
+            },
+        },
+    });
+}
+
 const renderCharts = (records) => {
     if (!records || Object.keys(records).length === 0) return;
 
-    const sortedRecords = Object.values(records).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    // 1. Chuyển đổi và sắp xếp tất cả bản ghi
+    let sortedRecords = Object.values(records).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-    const labels = sortedRecords.map((entry) => formatTimestamp(entry.timestamp, false).substring(0, 5));
+    // 2. LỌC DỮ LIỆU theo khoảng thời gian đã chọn (currentDataRange)
+    if (currentDataRange !== "all") {
+        const timeRangeInHours = parseInt(currentDataRange);
+        const startTime = new Date();
+        startTime.setHours(startTime.getHours() - timeRangeInHours);
+        const startTimeMs = startTime.getTime();
+
+        // Lọc bản ghi
+        sortedRecords = sortedRecords.filter((entry) => {
+            const entryTimeMs = new Date(entry.timestamp).getTime();
+            return entryTimeMs >= startTimeMs;
+        });
+    }
+
+    if (sortedRecords.length === 0) {
+        const babyCanvas = document.getElementById("babyTempChart");
+        const envCanvas = document.getElementById("envChart");
+
+        [babyCanvas, envCanvas].forEach((canvas) => {
+            if (canvas) canvas.style.display = "none";
+        });
+
+        const showNoDataMessage = (containerId, range) => {
+            const container = document.querySelector(`#${containerId}`)?.parentNode;
+            if (!container) return;
+
+            let msg = container.querySelector(".no-data-message");
+            if (!msg) {
+                msg = document.createElement("div");
+                msg.className = "no-data-message message-fade-in";
+                msg.style.cssText = `
+                text-align: center;
+                padding: 50px 0;
+                color: #666;
+                background: #f9f9f9;
+                border-radius: 10px;
+                font-style: italic;
+                font-size: 15px;
+            `;
+                container.appendChild(msg);
+            }
+            msg.textContent = `Không có dữ liệu trong ${range === "all" ? "toàn bộ lịch sử" : range + " giờ qua"}.`;
+            msg.style.display = "block";
+        };
+
+        showNoDataMessage("babyTempChart", currentDataRange);
+        showNoDataMessage("envChart", currentDataRange);
+
+        return;
+    }
+
+    document.querySelectorAll(".no-data-message").forEach((msg) => (msg.style.display = "none"));
+    document.getElementById("babyTempChart").style.display = "block";
+    document.getElementById("envChart").style.display = "block";
+
+    // 3. Chuẩn bị Labels và Data (Dùng logic thông minh đã viết)
+    const needsFullLabel = currentDataRange === "all" || parseInt(currentDataRange) >= 24;
+
+    const labels = sortedRecords.map((entry) =>
+        needsFullLabel ? formatTimestamp(entry.timestamp, true).substring(0, 16) : formatTimestamp(entry.timestamp, false).substring(0, 8)
+    );
+
     const babyTemps = sortedRecords.map((entry) => entry.babyTemperature);
     const envTemps = sortedRecords.map((entry) => entry.environmentTemperature);
     const envHums = sortedRecords.map((entry) => entry.environmentHumidity);
@@ -295,78 +468,14 @@ const renderCharts = (records) => {
 
     const ctxBabyTemp = $("babyTempChart")?.getContext("2d");
     if (ctxBabyTemp) {
-        charts.babyTemp = new Chart(ctxBabyTemp, {
-            type: "line",
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: "Nhiệt độ Bé (°C)",
-                        data: babyTemps,
-                        borderColor: "rgb(220, 53, 69)",
-                        backgroundColor: "rgba(220, 53, 69, 0.1)",
-                        tension: 0.1,
-                        pointRadius: 3,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        title: { display: true, text: "Nhiệt độ (°C)" },
-                        suggestedMin: 36.0,
-                        suggestedMax: 38.0,
-                    },
-                },
-            },
-        });
+        charts.babyTemp = renderBabyTempChart(ctxBabyTemp, labels, babyTemps);
     }
 
     if (charts.environment) charts.environment.destroy();
 
     const ctxEnv = $("envChart")?.getContext("2d");
     if (ctxEnv) {
-        charts.environment = new Chart(ctxEnv, {
-            type: "line",
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: "Nhiệt độ Phòng (°C)",
-                        data: envTemps,
-                        borderColor: "rgb(13, 116, 177)",
-                        backgroundColor: "rgba(13, 116, 177, 0.1)",
-                        tension: 0.1,
-                        yAxisID: "y1",
-                    },
-                    {
-                        label: "Độ ẩm Phòng (%)",
-                        data: envHums,
-                        borderColor: "rgb(40, 167, 69)",
-                        backgroundColor: "rgba(40, 167, 69, 0.1)",
-                        tension: 0.1,
-                        yAxisID: "y2",
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y1: { type: "linear", display: true, position: "left", title: { display: true, text: "Nhiệt độ (°C)" } },
-                    y2: {
-                        type: "linear",
-                        display: true,
-                        position: "right",
-                        title: { display: true, text: "Độ ẩm (%)" },
-                        grid: { drawOnChartArea: false },
-                        suggestedMin: 30,
-                        suggestedMax: 70,
-                    },
-                },
-            },
-        });
+        charts.environment = renderEnvChart(ctxEnv, labels, envTemps, envHums);
     }
 };
 
@@ -419,7 +528,7 @@ let stopListening = null;
 const startDataListener = () => {
     if (stopListening) return;
 
-    const latestQuery = query(REFS.sleepData, limitToLast(30));
+    const latestQuery = query(REFS.sleepData, limitToLast(500));
 
     const unsubscribe = onValue(latestQuery, (snapshot) => {
         if (snapshot.exists()) {
@@ -516,4 +625,32 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Logout error:", error);
         }
     });
+
+    const chartSection = document.querySelector(".chart-section");
+    const dataRef = ref(database, "sleepData");
+
+    if (chartSection) {
+        chartSection.addEventListener("click", async (e) => {
+            const button = e.target.closest(".time-range-controls button");
+            if (!button) return;
+
+            const newRange = button.dataset.range;
+            currentDataRange = newRange;
+
+            document.querySelectorAll(".time-range-controls button").forEach((btn) => btn.classList.remove("active"));
+            button.classList.add("active");
+
+            try {
+                const snapshot = await get(dataRef);
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    renderCharts(data);
+                } else {
+                    console.warn("Không có dữ liệu để hiển thị.");
+                }
+            } catch (error) {
+                console.error("Lỗi khi tải dữ liệu:", error);
+            }
+        });
+    }
 });

@@ -520,6 +520,55 @@ body.auth-ready {
     margin: var(--spacing-xl) 0;
 }
 
+.time-range-controls {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.time-range-controls .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #444;
+    background-color: #f4f4f4;
+    border: 1px solid #ccc;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.time-range-controls .btn:hover {
+    background-color: #eaeaea;
+    border-color: #bbb;
+}
+
+.time-range-controls .btn.active {
+    background-color: #64b5f6;
+    color: #fff;
+    border-color: #64b5f6;
+    box-shadow: 0 2px 6px rgba(13, 116, 177, 0.3);
+}
+
+.time-range-controls .btn:active {
+    transform: scale(0.96);
+}
+
+.message-fade-in {
+    animation: messagefadeIn 0.4s ease;
+}
+@keyframes messagefadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .auth-loading::before {
     content: "";
     position: fixed;
@@ -665,7 +714,6 @@ canvas {
 
     .chart-section {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
         gap: var(--spacing-lg);
     }
 
