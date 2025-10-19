@@ -32,12 +32,6 @@ let currentDataRange = 1;
 
 const $ = (id) => document.getElementById(id);
 
-const parseNumber = (text) => {
-    if (!text) return null;
-    const n = parseFloat(String(text).replace(/[^\d\.\-]/g, ""));
-    return Number.isNaN(n) ? null : n;
-};
-
 const formatTimestamp = (isoString, full = true) => {
     if (!isoString) return "N/A";
 
@@ -411,7 +405,6 @@ const renderCharts = (records) => {
         startTime.setHours(startTime.getHours() - timeRangeInHours);
         const startTimeMs = startTime.getTime();
 
-        // Lọc bản ghi
         sortedRecords = sortedRecords.filter((entry) => {
             const entryTimeMs = new Date(entry.timestamp).getTime();
             return entryTimeMs >= startTimeMs;
@@ -419,7 +412,6 @@ const renderCharts = (records) => {
     }
 
     if (sortedRecords.length === 0) {
-        // Ẩn canvas (đừng xoá)
         const babyCanvas = document.getElementById("babyTempChart");
         const envCanvas = document.getElementById("envChart");
 
