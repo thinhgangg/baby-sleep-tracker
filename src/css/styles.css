@@ -558,6 +558,7 @@ body.auth-ready {
 .message-fade-in {
     animation: messagefadeIn 0.4s ease;
 }
+
 @keyframes messagefadeIn {
     from {
         opacity: 0;
