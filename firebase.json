@@ -1,0 +1,25 @@
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "baby-sleep-tracker-a4f6c",
+                    "appId": "1:769444385663:android:8bf824cb8f88bb3ee5c04a",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "baby-sleep-tracker-a4f6c",
+                    "configurations": {
+                        "android": "1:769444385663:android:8bf824cb8f88bb3ee5c04a",
+                        "ios": "1:769444385663:ios:7a7b16fa700067c4e5c04a",
+                        "macos": "1:769444385663:ios:7a7b16fa700067c4e5c04a",
+                        "web": "1:769444385663:web:52328e62c8559a8be5c04a",
+                        "windows": "1:769444385663:web:665ab66dc82a20a6e5c04a"
+                    }
+                }
+            }
+        }
+    }
+}
