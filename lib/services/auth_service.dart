@@ -31,8 +31,8 @@ class AuthService {
       );
 
       await _db.ref('user/${userCred.user!.uid}').set({
-        'email': email,
         'deviceId': deviceId.trim(),
+        'email': email,
       });
 
       return userCred.user;

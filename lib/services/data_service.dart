@@ -62,7 +62,7 @@ class DataService {
   }
 
   Stream<List<SleepEntry>> get historyStream {
-    return _db.child('sleepData/$deviceId').limitToLast(200).onValue.map((
+    return _db.child('sleepData/$deviceId').limitToLast(100).onValue.map((
       event,
     ) {
       if (!event.snapshot.exists || event.snapshot.value == null) return [];
