@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final String initialStep;
+  const AuthScreen({super.key, this.initialStep = 'phone'});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -10,14 +12,18 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen>
     with SingleTickerProviderStateMixin {
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-  final _deviceIdController = TextEditingController();
-  bool isLogin = true;
-  bool loading = false;
-  bool _obscurePassword = true;
-
   final _authService = AuthService();
+  final _formKey = GlobalKey<FormState>();
+
+  final _phoneController = TextEditingController();
+  final _otpController = TextEditingController();
+  final _deviceIdController = TextEditingController();
+
+  bool _loading = false;
+  String _verificationId = '';
+  late String _currentStep;
+  String _currentPhoneNumber = '';
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -25,6 +31,8 @@ class _AuthScreenState extends State<AuthScreen>
   @override
   void initState() {
     super.initState();
+    _currentStep = widget.initialStep;
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -48,18 +56,20 @@ class _AuthScreenState extends State<AuthScreen>
   @override
   void dispose() {
     _animationController.dispose();
-    _email.dispose();
-    _password.dispose();
+    _phoneController.dispose();
+    _otpController.dispose();
+    _deviceIdController.dispose();
     super.dispose();
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(
-              Icons.warning_amber_rounded,
+            Icon(
+              isError ? Icons.warning_amber_rounded : Icons.check_circle,
               color: Colors.white,
               size: 20,
             ),
@@ -67,64 +77,347 @@ class _AuthScreenState extends State<AuthScreen>
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.orange[700],
+        backgroundColor: isError ? Colors.orange[700] : Colors.green[700],
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
-  void _showSuccessSnackBar(String message) {
-    if (!mounted) return;
+  String _formatPhoneNumber(String phone) {
+    String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+    if (cleaned.startsWith('0')) {
+      return '+84${cleaned.substring(1)}';
+    } else if (cleaned.startsWith('84')) {
+      return '+$cleaned';
+    } else if (cleaned.startsWith('+84')) {
+      return cleaned;
+    }
+    return '+84$cleaned';
+  }
+
+  // --- LOGIC: 1. GỬI OTP ---
+  Future<void> _sendOTP() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final phone = _phoneController.text.trim();
+    final formattedPhone = _formatPhoneNumber(phone);
+
+    setState(() => _loading = true);
+
+    await _authService.sendOTP(
+      phoneNumber: formattedPhone,
+      onCodeSent: (verificationId) {
+        if (mounted) {
+          setState(() {
+            _verificationId = verificationId;
+            _currentPhoneNumber = formattedPhone;
+            _currentStep = 'otp';
+            _loading = false;
+            _otpController.clear();
+          });
+          _showSnackBar('Mã OTP đã được gửi đến $_currentPhoneNumber');
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          _showSnackBar(error, isError: true);
+          setState(() => _loading = false);
+        }
+      },
     );
   }
 
-  Future<void> handleSubmit() async {
-    if (_email.text.trim().isEmpty || _password.text.trim().isEmpty) {
-      if (mounted) {
-        _showErrorSnackBar("Vui lòng điền đầy đủ email và mật khẩu");
-      }
+  // --- LOGIC: 2. XÁC THỰC OTP ---
+  Future<void> _verifyOTP() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final otp = _otpController.text.trim();
+    if (_verificationId.isEmpty) {
+      _showSnackBar('Vui lòng gửi lại mã OTP', isError: true);
       return;
     }
 
-    setState(() => loading = true);
+    setState(() => _loading = true);
+
     try {
-      if (isLogin) {
-        await _authService.signIn(_email.text.trim(), _password.text);
-      } else {
-        await _authService.signUp(
-          _email.text.trim(),
-          _password.text,
-          _deviceIdController.text.trim(),
-        );
+      final user = await _authService.verifyOTP(
+        verificationId: _verificationId,
+        otp: otp,
+      );
 
-        if (mounted) {
-          await _authService.signOut();
+      if (user != null && mounted) {
+        // Kiểm tra xem user đã có Device ID chưa
+        final hasDevice = await _authService.hasDeviceId(user.uid);
 
+        if (hasDevice) {
+          // User cũ -> AuthGate sẽ tự động chuyển đến Dashboard
+          setState(() => _loading = false);
+          _showSnackBar('Đăng nhập thành công!');
+        } else {
+          // User mới -> Yêu cầu nhập Device ID (Ngăn AuthGate chuyển màn hình)
           setState(() {
-            isLogin = true;
+            _currentStep = 'device_id';
+            _loading = false;
           });
-
-          _showSuccessSnackBar('Đăng ký thành công! Vui lòng đăng nhập.');
+          _showSnackBar(
+            'Vui lòng nhập ID thiết bị để hoàn tất đăng ký',
+            isError: false,
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar(e.toString());
-        setState(() => loading = false);
+        _showSnackBar(e.toString(), isError: true);
+        setState(() => _loading = false);
       }
-      return;
-    }
-    if (mounted) {
-      setState(() => loading = false);
     }
   }
 
+  // --- LOGIC: 3. ĐĂNG KÝ DEVICE ID ---
+  Future<void> _registerDeviceAndComplete() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final deviceId = _deviceIdController.text.trim();
+
+    setState(() => _loading = true);
+
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        await _authService.registerDeviceId(
+          uid: user.uid,
+          deviceId: deviceId,
+          phoneNumber: user.phoneNumber ?? _currentPhoneNumber,
+        );
+
+        if (mounted) {
+          _showSnackBar('Đăng ký thiết bị thành công!');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar(e.toString(), isError: true);
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Widget _buildCurrentStepContent() {
+    Widget content;
+    String title;
+    String subtitle;
+    VoidCallback onSubmit;
+
+    switch (_currentStep) {
+      case 'phone':
+        content = _buildPhoneInput();
+        title = "Đăng nhập";
+        subtitle = "Nhập số điện thoại để nhận mã OTP";
+        onSubmit = _sendOTP;
+        break;
+      case 'otp':
+        content = _buildOTPInput();
+        title = "Xác thực OTP";
+        subtitle = "Nhập mã OTP đã được gửi đến ${_phoneController.text}";
+        onSubmit = _verifyOTP;
+        break;
+      case 'device_id':
+        content = _buildDeviceIdInput();
+        title = "Hoàn tất đăng ký";
+        subtitle = "Nhập ID thiết bị để bắt đầu theo dõi";
+        onSubmit = _registerDeviceAndComplete;
+        break;
+      default:
+        content = _buildPhoneInput();
+        title = "Đăng nhập";
+        subtitle = "Nhập số điện thoại để nhận mã OTP";
+        onSubmit = _sendOTP;
+        break;
+    }
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+
+          content,
+
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _loading ? null : onSubmit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF667EEA),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey[300],
+                elevation: _loading ? 0 : 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_getButtonIcon(), size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getButtonText(title),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          if (_currentStep == 'otp' && !_loading)
+            TextButton(
+              onPressed: () {
+                setState(() => _currentStep = 'phone');
+                _otpController.clear();
+              },
+              child: const Text(
+                "Gửi lại mã OTP",
+                style: TextStyle(
+                  color: Color(0xFF667EEA),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneInput() {
+    return TextFormField(
+      controller: _phoneController,
+      enabled: !_loading,
+      keyboardType: TextInputType.phone,
+      decoration: InputDecoration(
+        labelText: "Số điện thoại",
+        prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFF764BA2)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      validator: (val) {
+        if (val == null || val.isEmpty) {
+          return 'Vui lòng nhập số điện thoại.';
+        }
+        final cleaned = val.replaceAll(RegExp(r'[^\d]'), '');
+        if (cleaned.length < 9 || cleaned.length > 12) {
+          return 'Số điện thoại không hợp lệ.';
+        }
+        return null;
+      },
+      onFieldSubmitted: (_) => _sendOTP(),
+    );
+  }
+
+  Widget _buildOTPInput() {
+    return TextFormField(
+      controller: _otpController,
+      enabled: !_loading,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(
+        labelText: "Mã OTP",
+        prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF764BA2)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      validator: (val) {
+        if (val == null || val.length != 6) {
+          return 'Mã xác thực phải gồm 6 chữ số.';
+        }
+        return null;
+      },
+      onFieldSubmitted: (_) => _verifyOTP(),
+    );
+  }
+
+  Widget _buildDeviceIdInput() {
+    return TextFormField(
+      controller: _deviceIdController,
+      enabled: !_loading,
+      decoration: InputDecoration(
+        labelText: "ID Thiết bị",
+        prefixIcon: const Icon(Icons.devices_other, color: Color(0xFF764BA2)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      validator: (val) {
+        if (val == null || val.isEmpty) {
+          return 'Vui lòng nhập ID thiết bị.';
+        }
+        return null;
+      },
+      onFieldSubmitted: (_) => _registerDeviceAndComplete(),
+    );
+  }
+
+  IconData _getButtonIcon() {
+    switch (_currentStep) {
+      case 'phone':
+        return Icons.send;
+      case 'otp':
+        return Icons.verified;
+      case 'device_id':
+        return Icons.check_circle;
+      default:
+        return Icons.arrow_forward;
+    }
+  }
+
+  String _getButtonText(String currentTitle) {
+    switch (_currentStep) {
+      case 'phone':
+        return 'GỬI MÃ OTP';
+      case 'otp':
+        return 'XÁC THỰC';
+      case 'device_id':
+        return 'HOÀN TẤT ĐĂNG KÝ';
+      default:
+        return 'TIẾP TỤC';
+    }
+  }
+
+  // --- BUILD CHÍNH ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -150,33 +443,14 @@ class _AuthScreenState extends State<AuthScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo and Icon
-                      Hero(
-                        tag: 'app_logo',
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.child_care,
-                            size: 64,
-                            color: Color(0xFF667EEA),
-                          ),
-                        ),
+                      // Logo and Title
+                      const Icon(
+                        Icons.child_care,
+                        size: 64,
+                        color: Colors.white,
                       ),
-                      const SizedBox(height: 16),
-
-                      // Title
-                      Text(
+                      const SizedBox(height: 8),
+                      const Text(
                         "Baby Sleep Tracker",
                         style: TextStyle(
                           fontSize: 28,
@@ -185,16 +459,16 @@ class _AuthScreenState extends State<AuthScreen>
                           letterSpacing: 0.5,
                           shadows: [
                             Shadow(
-                              color: Colors.black.withOpacity(0.3),
-                              offset: const Offset(0, 2),
+                              color: Colors.black38,
+                              offset: Offset(0, 2),
                               blurRadius: 4,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 32),
 
-                      // Form Card
+                      // Form Card (đã tích hợp AnimatedSwitcher)
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 420),
                         child: Card(
@@ -205,302 +479,25 @@ class _AuthScreenState extends State<AuthScreen>
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(32),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Toggle buttons
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildToggleButton(
-                                          "Đăng nhập",
-                                          isLogin,
-                                          () {
-                                            if (!loading) {
-                                              setState(() => isLogin = true);
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: _buildToggleButton(
-                                          "Đăng ký",
-                                          !isLogin,
-                                          () {
-                                            if (!loading) {
-                                              setState(() => isLogin = false);
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 32),
-
-                                // Email field
-                                TextFormField(
-                                  controller: _email,
-                                  enabled: !loading,
-                                  decoration: InputDecoration(
-                                    labelText: "Email",
-                                    prefixIcon: const Icon(
-                                      Icons.email_outlined,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey[300]!,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFF667EEA),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.grey[50],
-                                  ),
-                                  keyboardType: TextInputType.emailAddress,
-                                  textInputAction: TextInputAction.next,
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Password field
-                                TextFormField(
-                                  controller: _password,
-                                  enabled: !loading,
-                                  obscureText: _obscurePassword,
-                                  decoration: InputDecoration(
-                                    labelText: "Mật khẩu",
-                                    prefixIcon: const Icon(Icons.lock_outline),
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        _obscurePassword
-                                            ? Icons.visibility_outlined
-                                            : Icons.visibility_off_outlined,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _obscurePassword = !_obscurePassword;
-                                        });
-                                      },
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey[300]!,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFF667EEA),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.grey[50],
-                                  ),
-                                  textInputAction: TextInputAction.done,
-                                  onFieldSubmitted: (_) => handleSubmit(),
-                                ),
-
-                                if (!isLogin) ...[
-                                  const SizedBox(height: 20),
-                                  TextFormField(
-                                    controller: _deviceIdController,
-                                    decoration: InputDecoration(
-                                      labelText: 'ID Thiết bị',
-                                      prefixIcon: const Icon(
-                                        Icons.devices_other,
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(
-                                          color: Colors.grey[300]!,
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(
-                                          color: Color(0xFF667EEA),
-                                          width: 2,
-                                        ),
-                                      ),
-                                      filled: true,
-                                      fillColor: Colors.grey[50],
-                                    ),
-                                    textInputAction: TextInputAction.done,
-                                    validator: (val) {
-                                      if (val == null || val.isEmpty) {
-                                        return 'Vui lòng nhập ID thiết bị.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 20),
-                                ],
-
-                                if (isLogin) ...[
-                                  const SizedBox(height: 12),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: loading
-                                          ? null
-                                          : () {
-                                              // Forgot password logic
-                                            },
-                                      child: Text(
-                                        "Quên mật khẩu?",
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-
-                                const SizedBox(height: 10),
-
-                                // Submit button
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 56,
-                                  child: ElevatedButton(
-                                    onPressed: loading ? null : handleSubmit,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF667EEA),
-                                      foregroundColor: Colors.white,
-                                      disabledBackgroundColor: Colors.grey[300],
-                                      elevation: loading ? 0 : 2,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: loading
-                                        ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2.5,
-                                            ),
-                                          )
-                                        : Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                isLogin
-                                                    ? Icons.login
-                                                    : Icons.person_add,
-                                                size: 20,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                isLogin
-                                                    ? "ĐĂNG NHẬP"
-                                                    : "ĐĂNG KÝ",
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 24),
-
-                                // Divider
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Divider(color: Colors.grey[300]),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                      ),
-                                      child: Text(
-                                        "hoặc",
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Divider(color: Colors.grey[300]),
-                                    ),
-                                  ],
-                                ),
-
-                                const SizedBox(height: 16),
-
-                                // Switch button
-                                TextButton(
-                                  onPressed: loading
-                                      ? null
-                                      : () =>
-                                            setState(() => isLogin = !isLogin),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  child: RichText(
-                                    text: TextSpan(
-                                      style: TextStyle(
-                                        color: Colors.grey[700],
-                                        fontSize: 14,
-                                      ),
-                                      children: [
-                                        TextSpan(
-                                          text: isLogin
-                                              ? "Chưa có tài khoản? "
-                                              : "Đã có tài khoản? ",
-                                        ),
-                                        TextSpan(
-                                          text: isLogin
-                                              ? "Đăng ký ngay"
-                                              : "Đăng nhập",
-                                          style: const TextStyle(
-                                            color: Color(0xFF667EEA),
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: _buildCurrentStepContent(),
+                              transitionBuilder:
+                                  (Widget child, Animation<double> animation) {
+                                    // Sử dụng slide/fade animation cho content bên trong card
+                                    final offsetAnimation = Tween<Offset>(
+                                      begin: const Offset(1.0, 0.0),
+                                      end: Offset.zero,
+                                    ).animate(animation);
+                                    return SlideTransition(
+                                      position: offsetAnimation,
+                                      child: child,
+                                    );
+                                  },
                             ),
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 32),
 
                       // Footer
@@ -516,29 +513,6 @@ class _AuthScreenState extends State<AuthScreen>
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildToggleButton(String text, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF667EEA) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey[600],
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            fontSize: 15,
           ),
         ),
       ),

@@ -3,65 +3,89 @@ import 'package:firebase_database/firebase_database.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseDatabase _db = FirebaseDatabase.instance;
+  final FirebaseDatabase _db = FirebaseDatabase.instance; 
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  FirebaseDatabase get db => _db;
+  User? get currentUser => _auth.currentUser;
 
-  Future<User?> signIn(String email, String password) async {
+  // 1. GỬI OTP (Thay thế verifyPhoneNumber)
+  Future<void> sendOTP({
+    required String phoneNumber,
+    required Function(String verificationId) onCodeSent,
+    required Function(String error) onError,
+  }) async {
     try {
-      final userCred = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          await _auth.signInWithCredential(credential);
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          onError(_handleFirebaseError(e));
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          onCodeSent(verificationId);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+        },
+        timeout: const Duration(seconds: 60),
       );
-
-      return userCred.user;
     } catch (e) {
-      if (e is FirebaseAuthException) {
-        throw _handleFirebaseError(e);
-      }
-      throw Exception('Lỗi hệ thống: ${e.toString()}');
+      onError('Lỗi hệ thống: ${e.toString()}');
     }
   }
 
-  Future<User?> signUp(String email, String password, String deviceId) async {
-    try {
-      final userCred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      await _db.ref('user/${userCred.user!.uid}').set({
-        'deviceId': deviceId.trim(),
-        'email': email,
-      });
-
-      return userCred.user;
-    } catch (e) {
-      if (e is FirebaseAuthException) {
-        throw _handleFirebaseError(e);
-      }
-      throw Exception('Lỗi hệ thống: ${e.toString()}');
+  // 2. XÁC THỰC OTP (Thay thế signInWithOTP)
+  Future<User?> verifyOTP({
+    required String verificationId,
+    required String otp,
+  }) async {
+    if (verificationId.isEmpty) {
+      throw Exception('Verification ID bị thiếu. Vui lòng gửi OTP lại.');
     }
+
+    final credential = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: otp,
+    );
+
+    final userCred = await _auth.signInWithCredential(credential);
+    return userCred.user;
+  }
+
+  // 3. ĐĂNG KÝ DEVICE ID (Thay thế registerNewUser)
+  Future<void> registerDeviceId({
+    required String uid,
+    required String deviceId,
+    required String phoneNumber,
+  }) async {
+    // Ghi dữ liệu vào node user/{UID}
+    await _db.ref('user/$uid').set({
+      'deviceId': deviceId.trim(),
+      'phone': phoneNumber, 
+    });
+  }
+  
+  // 4. KIỂM TRA DEVICE ID (Giống logic trong AuthGate)
+  Future<bool> hasDeviceId(String uid) async {
+    final snapshot = await _db.ref('user/$uid/deviceId').get();
+    return snapshot.exists && snapshot.value != null;
   }
 
   Future<void> signOut() async => await _auth.signOut();
 
   String _handleFirebaseError(FirebaseAuthException e) {
     switch (e.code) {
-      case 'invalid-credential':
-        return 'Email hoặc mật khẩu không đúng.';
-      case 'invalid-email':
-        return 'Email không hợp lệ.';
-      case 'user-disabled':
-        return 'Tài khoản đã bị vô hiệu hóa.';
-      case 'email-already-in-use':
-        return 'Email này đã được sử dụng.';
-      case 'weak-password':
-        return 'Mật khẩu quá yếu (tối thiểu 6 ký tự).';
-      case 'too-many-requests':
-        return 'Quá nhiều yêu cầu. Vui lòng thử lại sau.';
+      case 'invalid-phone-number':
+        return 'Số điện thoại không hợp lệ.';
+      case 'quota-exceeded':
+        return 'Đã vượt quá hạn mức yêu cầu OTP. Vui lòng thử lại sau.';
+      case 'session-expired':
+        return 'Mã xác thực đã hết hạn. Vui lòng gửi lại.';
+      case 'invalid-verification-code':
+        return 'Mã xác thực không đúng. Vui lòng kiểm tra lại.';
       default:
-        return e.message ?? 'Đã xảy ra lỗi. Vui lòng thử lại.';
+        return 'Lỗi Firebase: ${e.message}';
     }
   }
 }
