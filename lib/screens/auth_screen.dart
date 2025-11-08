@@ -99,7 +99,7 @@ class _AuthScreenState extends State<AuthScreen>
     return '+84$cleaned';
   }
 
-  // --- LOGIC: 1. GỬI OTP ---
+  // 1. GỬI OTP
   Future<void> _sendOTP() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -119,7 +119,7 @@ class _AuthScreenState extends State<AuthScreen>
             _loading = false;
             _otpController.clear();
           });
-          _showSnackBar('Mã OTP đã được gửi đến $_currentPhoneNumber');
+          _showSnackBar('Mã OTP đã được gửi đến ${_phoneController.text}');
         }
       },
       onError: (error) {
@@ -131,7 +131,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  // --- LOGIC: 2. XÁC THỰC OTP ---
+  // 2. XÁC THỰC OTP 
   Future<void> _verifyOTP() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -158,7 +158,7 @@ class _AuthScreenState extends State<AuthScreen>
           setState(() => _loading = false);
           _showSnackBar('Đăng nhập thành công!');
         } else {
-          // User mới -> Yêu cầu nhập Device ID (Ngăn AuthGate chuyển màn hình)
+          // User mới -> Yêu cầu nhập Device ID để hoàn tất đăng ký
           setState(() {
             _currentStep = 'device_id';
             _loading = false;
@@ -177,7 +177,7 @@ class _AuthScreenState extends State<AuthScreen>
     }
   }
 
-  // --- LOGIC: 3. ĐĂNG KÝ DEVICE ID ---
+  // 3. ĐĂNG KÝ DEVICE ID
   Future<void> _registerDeviceAndComplete() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -417,7 +417,6 @@ class _AuthScreenState extends State<AuthScreen>
     }
   }
 
-  // --- BUILD CHÍNH ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -443,7 +442,6 @@ class _AuthScreenState extends State<AuthScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo and Title
                       const Icon(
                         Icons.child_care,
                         size: 64,
@@ -468,7 +466,6 @@ class _AuthScreenState extends State<AuthScreen>
                       ),
                       const SizedBox(height: 32),
 
-                      // Form Card (đã tích hợp AnimatedSwitcher)
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 420),
                         child: Card(
@@ -484,7 +481,6 @@ class _AuthScreenState extends State<AuthScreen>
                               child: _buildCurrentStepContent(),
                               transitionBuilder:
                                   (Widget child, Animation<double> animation) {
-                                    // Sử dụng slide/fade animation cho content bên trong card
                                     final offsetAnimation = Tween<Offset>(
                                       begin: const Offset(1.0, 0.0),
                                       end: Offset.zero,
@@ -500,7 +496,6 @@ class _AuthScreenState extends State<AuthScreen>
                       ),
                       const SizedBox(height: 32),
 
-                      // Footer
                       Text(
                         "© 2025 Baby Sleep Tracker",
                         style: TextStyle(

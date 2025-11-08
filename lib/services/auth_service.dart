@@ -3,12 +3,12 @@ import 'package:firebase_database/firebase_database.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseDatabase _db = FirebaseDatabase.instance; 
+  final FirebaseDatabase _db = FirebaseDatabase.instance;
 
   FirebaseDatabase get db => _db;
   User? get currentUser => _auth.currentUser;
 
-  // 1. GỬI OTP (Thay thế verifyPhoneNumber)
+  // 1. GỬI OTP
   Future<void> sendOTP({
     required String phoneNumber,
     required Function(String verificationId) onCodeSent,
@@ -26,8 +26,7 @@ class AuthService {
         codeSent: (String verificationId, int? resendToken) {
           onCodeSent(verificationId);
         },
-        codeAutoRetrievalTimeout: (String verificationId) {
-        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
         timeout: const Duration(seconds: 60),
       );
     } catch (e) {
@@ -35,40 +34,46 @@ class AuthService {
     }
   }
 
-  // 2. XÁC THỰC OTP (Thay thế signInWithOTP)
+  // 2. XÁC THỰC OTP
   Future<User?> verifyOTP({
     required String verificationId,
     required String otp,
   }) async {
     if (verificationId.isEmpty) {
-      throw Exception('Verification ID bị thiếu. Vui lòng gửi OTP lại.');
+      throw 'Verification ID bị thiếu. Vui lòng gửi OTP lại.';
     }
 
-    final credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: otp,
-    );
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: otp,
+      );
 
-    final userCred = await _auth.signInWithCredential(credential);
-    return userCred.user;
+      final userCred = await _auth.signInWithCredential(credential);
+      return userCred.user;
+    } on FirebaseAuthException catch (e) {
+      throw _handleFirebaseError(e);
+    } catch (e) {
+      throw 'Lỗi hệ thống: ${e.toString()}';
+    }
   }
 
-  // 3. ĐĂNG KÝ DEVICE ID (Thay thế registerNewUser)
+  // 3. ĐĂNG KÝ DEVICE ID
   Future<void> registerDeviceId({
     required String uid,
     required String deviceId,
     required String phoneNumber,
   }) async {
-    // Ghi dữ liệu vào node user/{UID}
-    await _db.ref('user/$uid').set({
+    // Ghi dữ liệu vào node users/{UID}
+    await _db.ref('users/$uid').set({
       'deviceId': deviceId.trim(),
-      'phone': phoneNumber, 
+      'phone': phoneNumber,
     });
   }
-  
-  // 4. KIỂM TRA DEVICE ID (Giống logic trong AuthGate)
+
+  // 4. KIỂM TRA DEVICE ID
   Future<bool> hasDeviceId(String uid) async {
-    final snapshot = await _db.ref('user/$uid/deviceId').get();
+    final snapshot = await _db.ref('users/$uid/deviceId').get();
     return snapshot.exists && snapshot.value != null;
   }
 

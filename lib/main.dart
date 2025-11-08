@@ -47,10 +47,10 @@ class AuthGate extends StatelessWidget {
 
         // 2. TẠO Stream để kiểm tra dữ liệu DB (deviceId)
         final DatabaseReference userRef = FirebaseDatabase.instance.ref(
-          'user/${user.uid}',
+          'users/${user.uid}',
         );
 
-        // Lắng nghe sự thay đổi của node user/$uid
+        // Lắng nghe sự thay đổi của node users/$uid
         return StreamBuilder<DatabaseEvent>(
           stream: userRef.onValue,
           builder: (context, userDbSnapshot) {

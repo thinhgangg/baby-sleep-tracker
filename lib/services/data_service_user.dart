@@ -4,7 +4,7 @@ class DatabaseServiceUser {
   final String uid;
   DatabaseServiceUser(this.uid);
 
-  DatabaseReference get userRef => FirebaseDatabase.instance.ref('user/$uid');
+  DatabaseReference get userRef => FirebaseDatabase.instance.ref('users/$uid');
 
   Future<String?> getDeviceId() async {
     final snapshot = await userRef.child('deviceId').get();
