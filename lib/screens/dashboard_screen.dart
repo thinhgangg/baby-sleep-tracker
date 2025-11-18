@@ -42,24 +42,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // KIỂM TRA CẢNH BÁO
     if (entry.isCrying == true) {
-      alertTitle = "⚠️ CẢNH BÁO KHÓC!";
+      alertTitle = "CẢNH BÁO KHÓC!";
       alertBody = "Bé đang khóc! Hãy kiểm tra ngay.";
       alertColor = Colors.orange;
     } else if (entry.notiPosition == true) {
-      alertTitle = "⚠️ CẢNH BÁO TƯ THẾ!";
+      alertTitle = "CẢNH BÁO TƯ THẾ!";
       alertBody = "Bé nằm sấp quá lâu! Hãy điều chỉnh tư thế.";
       alertColor = Colors.red;
     } else if (entry.babyTemp != null &&
         (entry.babyTemp! < 35 || entry.babyTemp! > 37.5)) {
-      alertTitle = "⚠️ CẢNH BÁO NHIỆT ĐỘ!";
+      alertTitle = "CẢNH BÁO NHIỆT ĐỘ!";
       alertBody =
-          "Bé có nhiệt độ bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
+          "Nhiệt độ bé bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
       alertColor = Colors.red;
     }
 
     if (alertTitle != null && mounted) {
-      // CHỈ HIỂN THỊ LOCAL NOTIFICATION KHI APP ĐANG CHẠY FOREGROUND
-      // Khi app ở Background/Đóng, Cloud Function sẽ gửi Push Notification
       flutterLocalNotificationsPlugin.show(
         0,
         alertTitle,

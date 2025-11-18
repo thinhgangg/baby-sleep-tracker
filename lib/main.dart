@@ -6,12 +6,15 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'screens/auth_screen.dart';
+import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
+
   await registerFirebaseMessagingBackgroundHandler();
+
+  await initializeService();
 
   runApp(const MyApp());
 }
@@ -44,10 +47,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(const Duration(milliseconds: 1000));
-      await NotificationService().initialize();
-    });
+    NotificationService().initialize();
   }
 
   @override

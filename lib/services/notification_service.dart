@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../firebase_options.dart';
 
 // 1. TẠO CHANNEL CHO ANDROID
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -17,21 +19,26 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
-  // Lấy FCM token của thiết bị
   Future<String?> getToken() async {
     return await _fcm.getToken();
   }
 
-  // Hàm khởi tạo và xin quyền
   Future<void> initialize() async {
     await _requestPermission();
 
-    // KHỞI TẠO LOCAL NOTIFICATIONS
+    // Cấu hình icon cho Android
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
+    // Cấu hình cho iOS
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings();
+
     const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
 
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
@@ -43,10 +50,13 @@ class NotificationService {
           ?.createNotificationChannel(channel);
     }
 
+    // Xử lý tin nhắn khi app đang mở (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("🔔 Foreground message received: ${message.notification?.title}");
       final notification = message.notification;
       final android = message.notification?.android;
 
+      // Chỉ hiện thông báo local nếu có notification payload
       if (notification != null && android != null) {
         flutterLocalNotificationsPlugin.show(
           notification.hashCode,
@@ -59,69 +69,55 @@ class NotificationService {
               channelDescription: channel.description,
               importance: Importance.high,
               priority: Priority.high,
-              icon: android.smallIcon,
+              icon: android.smallIcon ?? '@mipmap/ic_launcher',
             ),
+            iOS: const DarwinNotificationDetails(),
           ),
         );
       }
     });
-
 
     String? token = await _fcm.getToken();
     print('🔑 FCM Token: $token');
   }
 
   Future<void> _requestPermission() async {
-    if (Platform.isIOS || Platform.isMacOS) {
-      final settings = await _fcm.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      print('📱 iOS permission: ${settings.authorizationStatus}');
-    } else if (Platform.isAndroid) {
-      final androidImplementation = flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
-
-      final bool? granted = await androidImplementation
-          ?.requestNotificationsPermission();
-
-      print('📱 Android permission granted: $granted');
-    }
+    NotificationSettings settings = await _fcm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    print('📱 User granted permission: ${settings.authorizationStatus}');
   }
 }
 
+// --- HÀM XỬ LÝ KHI APP ĐÓNG HOẶC CHẠY NGẦM (BACKGROUND/TERMINATED) ---
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   print("💤 Handling a background message: ${message.messageId}");
-  print('🔥 Background message received: ${message.data}');
-
-  final FlutterLocalNotificationsPlugin bgFlutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  const AndroidInitializationSettings androidInitSettings =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const InitializationSettings initSettings = InitializationSettings(
-    android: androidInitSettings,
-  );
-
-  await bgFlutterLocalNotificationsPlugin.initialize(initSettings);
-
-  if (Platform.isAndroid) {
-    await bgFlutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.createNotificationChannel(channel);
-  }
 
   final notification = message.notification;
   final android = message.notification?.android;
 
   if (notification != null) {
+    final FlutterLocalNotificationsPlugin bgFlutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
+
+    const AndroidInitializationSettings androidInitSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const DarwinInitializationSettings darwinInitSettings =
+        DarwinInitializationSettings();
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidInitSettings,
+      iOS: darwinInitSettings,
+    );
+
+    await bgFlutterLocalNotificationsPlugin.initialize(initSettings);
+
     await bgFlutterLocalNotificationsPlugin.show(
       notification.hashCode,
       notification.title,
