@@ -131,7 +131,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  // 2. XÁC THỰC OTP 
+  // 2. XÁC THỰC OTP
   Future<void> _verifyOTP() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -193,6 +193,8 @@ class _AuthScreenState extends State<AuthScreen>
           deviceId: deviceId,
           phoneNumber: user.phoneNumber ?? _currentPhoneNumber,
         );
+
+        await _authService.saveFCMToken(user.uid);
 
         if (mounted) {
           _showSnackBar('Đăng ký thiết bị thành công!');
