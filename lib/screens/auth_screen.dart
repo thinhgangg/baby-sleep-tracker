@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'qr_scanner_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   final String initialStep;
@@ -18,7 +19,6 @@ class _AuthScreenState extends State<AuthScreen>
 
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
-  final _deviceIdController = TextEditingController();
 
   bool _loading = false;
   String _verificationId = '';
@@ -59,7 +59,6 @@ class _AuthScreenState extends State<AuthScreen>
     _animationController.dispose();
     _phoneController.dispose();
     _otpController.dispose();
-    _deviceIdController.dispose();
     super.dispose();
   }
 
@@ -176,17 +175,28 @@ class _AuthScreenState extends State<AuthScreen>
       }
     } catch (e) {
       if (mounted) {
+        final errorString = e.toString();
         _showSnackBar(e.toString(), isError: true);
         setState(() => _loading = false);
+
+        if (errorString.contains('hết hạn') ||
+            errorString.contains('session-expired')) {
+          setState(() {
+            _currentStep = 'phone';
+            _verificationId = '';
+            _otpController.clear();
+          });
+        }
       }
     }
   }
 
   // 3. ĐĂNG KÝ DEVICE ID
-  Future<void> _registerDeviceAndComplete() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final deviceId = _deviceIdController.text.trim();
+  Future<void> _registerDeviceAndComplete(String deviceId) async {
+    if (deviceId.isEmpty) {
+      _showSnackBar('Mã thiết bị không hợp lệ.', isError: true);
+      return;
+    }
 
     setState(() => _loading = true);
 
@@ -207,6 +217,7 @@ class _AuthScreenState extends State<AuthScreen>
 
         if (mounted) {
           _showSnackBar('Đăng ký thiết bị thành công!');
+          setState(() => _loading = false);
         }
       }
     } catch (e) {
@@ -217,11 +228,69 @@ class _AuthScreenState extends State<AuthScreen>
     }
   }
 
+  Future<void> _handleQrScan(BuildContext context, String rawData) async {
+    print("QR Raw Data: $rawData");
+    // Kiểm tra định dạng Deep Link
+    if (!rawData.startsWith('babysleep://link/device?id=')) {
+      _showSnackBar(
+        'Mã QR không hợp lệ hoặc không phải của ứng dụng.',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      final uri = Uri.parse(rawData);
+      final deviceId = uri.queryParameters['id'];
+
+      if (deviceId == null || deviceId.isEmpty) {
+        _showSnackBar('Không tìm thấy ID thiết bị trong mã QR.', isError: true);
+        return;
+      }
+
+      // Đóng màn hình quét
+      if (mounted) Navigator.of(context).pop();
+
+      // Tiến hành đăng ký
+      await _registerDeviceAndComplete(deviceId);
+    } catch (e) {
+      print("Lỗi parse QR: $e");
+      _showSnackBar('Lỗi xử lý mã QR.', isError: true);
+    }
+  }
+
+  // 4. MỞ MÀN HÌNH QUÉT
+  void _openQrScanner() {
+    if (_loading) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => QrScannerScreen(
+          onScanSuccess: (data) => _handleQrScan(context, data),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _signOutAndBackToPhone() async {
+    setState(() => _loading = true);
+    await _authService.signOut();
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _currentStep = 'phone';
+        _verificationId = '';
+        _otpController.clear();
+      });
+    }
+  }
+
   Widget _buildCurrentStepContent() {
     Widget content;
     String title;
     String subtitle;
     VoidCallback onSubmit;
+    bool showSubmitButton = true;
 
     switch (_currentStep) {
       case 'phone':
@@ -237,10 +306,11 @@ class _AuthScreenState extends State<AuthScreen>
         onSubmit = _verifyOTP;
         break;
       case 'device_id':
-        content = _buildDeviceIdInput();
+        content = _buildScanQrContent();
         title = "Hoàn tất đăng ký";
-        subtitle = "Nhập ID thiết bị để bắt đầu theo dõi";
-        onSubmit = _registerDeviceAndComplete;
+        subtitle = "Quét mã QR thiết bị theo dõi để liên kết";
+        onSubmit = () {};
+        showSubmitButton = false;
         break;
       default:
         content = _buildPhoneInput();
@@ -271,46 +341,47 @@ class _AuthScreenState extends State<AuthScreen>
 
           const SizedBox(height: 24),
 
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _loading ? null : onSubmit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF667EEA),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey[300],
-                elevation: _loading ? 0 : 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (showSubmitButton)
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _loading ? null : onSubmit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF667EEA),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  elevation: _loading ? 0 : 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-              ),
-              child: _loading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(_getButtonIcon(), size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          _getButtonText(title),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
                         ),
-                      ],
-                    ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(_getButtonIcon(), size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            _getButtonText(title),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
             ),
-          ),
 
           const SizedBox(height: 12),
           if (_currentStep == 'otp' && !_loading)
@@ -336,7 +407,10 @@ class _AuthScreenState extends State<AuthScreen>
     return TextFormField(
       controller: _phoneController,
       enabled: !_loading,
-      keyboardType: TextInputType.phone,
+      keyboardType: TextInputType.text,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
+      ],
       decoration: InputDecoration(
         labelText: "Số điện thoại",
         prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFF764BA2)),
@@ -381,24 +455,271 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildDeviceIdInput() {
-    return TextFormField(
-      controller: _deviceIdController,
-      enabled: !_loading,
-      decoration: InputDecoration(
-        labelText: "ID Thiết bị",
-        prefixIcon: const Icon(Icons.devices_other, color: Color(0xFF764BA2)),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey[50],
-      ),
-      validator: (val) {
-        if (val == null || val.isEmpty) {
-          return 'Vui lòng nhập ID thiết bị.';
-        }
-        return null;
+  Widget _buildScanQrContent() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF667EEA).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF667EEA).withOpacity(0.3),
+              width: 2,
+            ),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF667EEA).withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.qr_code_scanner,
+                  size: 64,
+                  color: Color(0xFF667EEA),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Mã QR được in trên thiết bị theo dõi",
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Nút quét QR chính
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: _loading ? null : _openQrScanner,
+            icon: const Icon(Icons.camera_alt, size: 22),
+            label: const Text(
+              "QUÉT MÃ QR",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                letterSpacing: 0.5,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667EEA),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: const Color(0xFF667EEA).withOpacity(0.4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Divider với text
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                "hoặc",
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // Nút nhập thủ công
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _loading
+                ? null
+                : () => _showManualDeviceIdDialog(context),
+            icon: const Icon(Icons.keyboard, size: 20),
+            label: const Text(
+              "Nhập ID thủ công",
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF667EEA),
+              side: BorderSide(
+                color: const Color(0xFF667EEA).withOpacity(0.5),
+                width: 1.5,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Nút quay lại
+        TextButton.icon(
+          onPressed: _loading ? null : _signOutAndBackToPhone,
+          icon: const Icon(Icons.arrow_back, size: 18),
+          label: const Text(
+            "Quay lại đăng nhập",
+            style: TextStyle(fontWeight: FontWeight.w500),
+          ),
+          style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+
+  void _showManualDeviceIdDialog(BuildContext context) {
+    final manualController = TextEditingController();
+    final dialogFormKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF667EEA).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.devices,
+                  color: Color(0xFF667EEA),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "Nhập ID Thiết bị",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Form(
+            key: dialogFormKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Nhập mã ID được in trên thiết bị theo dõi của bạn",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: manualController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    labelText: "ID Thiết bị",
+                    prefixIcon: const Icon(Icons.tag, color: Color(0xFF764BA2)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF667EEA),
+                        width: 2,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Vui lòng nhập ID thiết bị';
+                    }
+                    if (val.trim().length < 3) {
+                      return 'ID thiết bị quá ngắn';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey[600],
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              child: const Text(
+                "Hủy",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                if (dialogFormKey.currentState!.validate()) {
+                  Navigator.of(dialogContext).pop();
+                  _registerDeviceAndComplete(manualController.text.trim());
+                }
+              },
+              icon: const Icon(Icons.link, size: 18),
+              label: const Text(
+                "Liên kết",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF667EEA),
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        );
       },
-      onFieldSubmitted: (_) => _registerDeviceAndComplete(),
     );
   }
 

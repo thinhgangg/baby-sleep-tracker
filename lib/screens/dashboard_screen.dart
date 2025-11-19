@@ -5,6 +5,7 @@ import 'package:baby_sleep_tracker/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/data_service.dart';
@@ -493,7 +494,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
-                        Icons.link,
+                        Icons.qr_code,
                         color: Color(0xFF667EEA),
                         size: 24,
                       ),
@@ -514,7 +515,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 const SizedBox(height: 20),
 
-                // Container chứa mã và nút copy
+                // Container chứa QR code và nút copy
+                Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!, width: 1),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: QrImageView(
+                      data: 'babysleep://link/device?id=$deviceId',
+                      version: QrVersions.auto,
+                      size: 200.0,
+                      gapless: false,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF667EEA),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF764BA2),
+                      ),
+                      embeddedImage: const AssetImage('assets/logo.png'),
+                      embeddedImageStyle: QrEmbeddedImageStyle(
+                        size: const Size(40, 40),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Mã ID thô và nút Copy
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -532,7 +565,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Mã của bạn",
+                              "ID thiết bị",
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
@@ -561,27 +594,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ? () {
                                   Clipboard.setData(
                                     ClipboardData(text: deviceId),
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text('Đã sao chép mã vào clipboard'),
-                                        ],
-                                      ),
-                                      backgroundColor: Colors.green[700],
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      duration: const Duration(seconds: 2),
-                                    ),
                                   );
                                 }
                               : null,
@@ -623,7 +635,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        "Chia sẻ mã này cho người dùng khác để liên kết cùng thiết bị và theo dõi dữ liệu chung.",
+                        "Quét mã QR hoặc chia sẻ ID thiết bị để người thân liên kết với thiết bị theo dõi.",
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 13,
