@@ -44,32 +44,51 @@ Future<void> initializeService() async {
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    // Bỏ qua lỗi nếu Firebase đã được khởi tạo
+  }
 
-  Timer.periodic(const Duration(seconds: 5), (timer) async {
+  StreamSubscription<DatabaseEvent>? _dataSubscription;
+  Timer? _timer;
+
+  service.on('stopService').listen((event) {
+    print("🛑 Nhận lệnh dừng Service...");
+    _dataSubscription?.cancel();
+    _timer?.cancel();
+    service.stopSelf();
+  });
+
+  _timer = Timer.periodic(const Duration(seconds: 5), (timer) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
+
     final String? uid = prefs.getString('user_uid');
 
     if (uid != null) {
-      // đã có UID người dùng
+      print("✅ Background Service: Đã tìm thấy UID: $uid -> Bắt đầu giám sát");
       timer.cancel();
 
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title: "Baby Sleep Tracker",
-          content: "Đang giám sát bé...",
+          content: "Đang giám sát giấc ngủ của bé...",
         );
       }
 
-      _findDeviceAndListen(uid);
+      _dataSubscription = await _startListeningToFirebase(uid);
     } else {
-      print("⏳ Background Service: Đang chờ User Login...");
+      print("⏳ Background Service: Chưa thấy User UID. Đang chờ...");
     }
   });
 }
 
-void _findDeviceAndListen(String uid) async {
+Future<StreamSubscription<DatabaseEvent>?> _startListeningToFirebase(
+  String uid,
+) async {
   try {
     // 1. Lấy Device ID
     final userRef = FirebaseDatabase.instance.ref("users/$uid");
@@ -81,27 +100,28 @@ void _findDeviceAndListen(String uid) async {
       print("📱 Device ID tìm thấy: $deviceId -> Bắt đầu lắng nghe data...");
 
       // 2. Lắng nghe dữ liệu tại sleepData/$deviceId
-      // Dùng limitToLast(1) để chỉ lấy bản ghi mới nhất
       Query dataQuery = FirebaseDatabase.instance
           .ref("sleepData/$deviceId")
           .orderByKey()
           .limitToLast(1);
 
-      dataQuery.onValue.listen((event) {
+      // Trả về Subscription để onStart quản lý
+      return dataQuery.onValue.listen((event) {
         final rawMap = event.snapshot.value as Map?;
 
         if (rawMap != null && rawMap.isNotEmpty) {
           final latestData = rawMap.values.first;
-
           print("📡 Dữ liệu nền nhận được: $latestData");
           _processSensorData(latestData);
         }
       });
     } else {
       print("❌ User này chưa có Device ID");
+      return null;
     }
   } catch (e) {
     print("❌ Lỗi Background Service: $e");
+    return null;
   }
 }
 

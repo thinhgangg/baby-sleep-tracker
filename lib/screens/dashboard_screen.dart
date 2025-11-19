@@ -1,3 +1,4 @@
+import 'package:baby_sleep_tracker/screens/settings_screen.dart';
 import 'package:baby_sleep_tracker/widgets/app_card.dart';
 import 'package:baby_sleep_tracker/widgets/sleep_chart.dart';
 import 'package:baby_sleep_tracker/services/notification_service.dart';
@@ -5,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/data_service.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
@@ -31,7 +33,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : null;
     if (currentUser != null) {
       _authService.saveFCMToken(currentUser!.uid);
+      _saveUserToPrefs(currentUser!.uid);
     }
+  }
+
+  Future<void> _saveUserToPrefs(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_uid', uid);
+    print("✅ Đã lưu User UID vào SharedPreferences: $uid");
   }
 
   // Hàm kiểm tra cảnh báo và hiển thị Local Notification
@@ -121,7 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: const Icon(
                                 Icons.child_care,
                                 color: Colors.white,
-                                size: 28,
+                                size: 32,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -162,10 +171,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
-                          onPressed: () async =>
-                              FirebaseAuth.instance.signOut(),
-                          icon: const Icon(Icons.logout, color: Colors.white),
-                          tooltip: "Đăng xuất",
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const SettingsScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.settings,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                          tooltip: "Cài đặt",
                         ),
                       ),
                     ],
