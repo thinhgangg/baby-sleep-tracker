@@ -62,7 +62,7 @@ class DataService {
   }
 
   Stream<List<SleepEntry>> get historyStream {
-    return _db.child('sleepData/$deviceId').limitToLast(100).onValue.map((
+    return _db.child('sleepData/$deviceId').limitToLast(36).onValue.map((
       event,
     ) {
       if (!event.snapshot.exists || event.snapshot.value == null) return [];
@@ -72,8 +72,28 @@ class DataService {
 
       final data = Map<String, dynamic>.from(rawData);
 
-      return data.values
-          .map((e) {
+      // Chuyển Map thành List of Map.entries để có thể sắp xếp
+      final sortedEntries = data.entries.toList();
+
+      // Ta sắp xếp dựa trên timestamp được lưu trong value của mỗi entry
+      sortedEntries.sort((a, b) {
+        final timestampA = (a.value as Map)['timestamp'] ?? '';
+        final timestampB = (b.value as Map)['timestamp'] ?? '';
+
+        try {
+          // So sánh DateTime để sắp xếp từ cũ nhất đến mới nhất
+          final dateA = DateTime.parse(timestampA);
+          final dateB = DateTime.parse(timestampB);
+          return dateA.compareTo(dateB);
+        } catch (e) {
+          // Trường hợp timestamp không hợp lệ, giữ nguyên thứ tự (hoặc ưu tiên cái có timestamp)
+          return timestampA.compareTo(timestampB);
+        }
+      });
+
+      return sortedEntries
+          .map((entry) {
+            final e = entry.value;
             if (e is Map) {
               return SleepEntry.fromMap(Map<String, dynamic>.from(e));
             }
@@ -87,8 +107,6 @@ class DataService {
           })
           .toList()
           .where((e) => e.timestamp.isNotEmpty)
-          .toList()
-          .reversed
           .toList();
     });
   }
