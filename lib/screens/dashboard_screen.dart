@@ -285,14 +285,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
-                            Icons.bar_chart,
+                            Icons.podcasts,
                             color: Color(0xFF667EEA),
                             size: 24,
                           ),
                         ),
                         const SizedBox(width: 14),
                         const Text(
-                          "Trạng thái hiện tại",
+                          "TRẠNG THÁI HIỆN TẠI",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -338,7 +338,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.bedtime,
+                        icon: entry.status == "sleeping"
+                            ? Icons.bedtime
+                            : Icons.wb_sunny,
                         label: "Trạng thái",
                         value: entry.status == "sleeping" ? "Ngủ" : "Thức",
                         color: entry.status == "sleeping"
@@ -349,7 +351,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.child_care,
+                        icon: Icons.volume_up,
                         label: "Khóc",
                         value: entry.isCrying ? "Có" : "Không",
                         color: entry.isCrying ? Colors.red : Colors.green,
@@ -362,7 +364,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.airline_seat_recline_normal,
+                        icon: Icons.accessibility_new,
                         label: "Tư thế",
                         value: entry.position == "prone"
                             ? "Nằm sấp"
@@ -392,7 +394,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.device_thermostat,
+                        icon: Icons.thermostat_auto,
                         label: "Nhiệt độ phòng",
                         value: "${entry.envTemp}°C",
                         color:
@@ -405,7 +407,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.water_drop,
+                        icon: Icons.opacity,
                         label: "Độ ẩm",
                         value: "${entry.envHum}%",
                         color:
@@ -432,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 const SizedBox(height: 24),
                 _buildChartSection(
-                  "Nhiệt độ bé (°C)",
+                  "NHIỆT ĐỘ BÉ (°C)",
                   Icons.thermostat,
                   Colors.red,
                   SleepLineChart(
@@ -444,8 +446,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 24),
                 _buildChartSection(
-                  "Nhiệt độ phòng (°C)",
-                  Icons.device_thermostat,
+                  "NHIỆT ĐỘ PHÒNG (°C)",
+                  Icons.thermostat_auto,
                   Colors.orange,
                   SleepLineChart(
                     data: history,
@@ -456,8 +458,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 24),
                 _buildChartSection(
-                  "Độ ẩm phòng (%)",
-                  Icons.water_drop,
+                  "ĐỘ ẨM PHÒNG (%)",
+                  Icons.opacity,
                   Colors.blue,
                   SleepLineChart(
                     data: history,
