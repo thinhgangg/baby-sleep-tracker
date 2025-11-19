@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthScreen extends StatefulWidget {
   final String initialStep;
@@ -131,7 +132,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  // 2. XÁC THỰC OTP 
+  // 2. XÁC THỰC OTP
   Future<void> _verifyOTP() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -154,6 +155,10 @@ class _AuthScreenState extends State<AuthScreen>
         final hasDevice = await _authService.hasDeviceId(user.uid);
 
         if (hasDevice) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_uid', user.uid);
+          print("💾 Đã lưu User UID vào SharedPreferences: ${user.uid}");
+
           // User cũ -> AuthGate sẽ tự động chuyển đến Dashboard
           setState(() => _loading = false);
           _showSnackBar('Đăng nhập thành công!');
@@ -193,6 +198,12 @@ class _AuthScreenState extends State<AuthScreen>
           deviceId: deviceId,
           phoneNumber: user.phoneNumber ?? _currentPhoneNumber,
         );
+
+        await _authService.saveFCMToken(user.uid);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_uid', user.uid);
+        print("💾 Đã lưu User UID vào SharedPreferences: ${user.uid}");
 
         if (mounted) {
           _showSnackBar('Đăng ký thiết bị thành công!');

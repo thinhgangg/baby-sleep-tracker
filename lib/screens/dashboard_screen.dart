@@ -1,24 +1,93 @@
+import 'package:baby_sleep_tracker/screens/settings_screen.dart';
 import 'package:baby_sleep_tracker/widgets/app_card.dart';
 import 'package:baby_sleep_tracker/widgets/sleep_chart.dart';
+import 'package:baby_sleep_tracker/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/data_service.dart';
 import 'package:intl/intl.dart';
+import '../services/auth_service.dart';
 import '../services/data_service_user.dart';
 
-class DashboardScreen extends StatelessWidget {
-  final User? currentUser = FirebaseAuth.instance.currentUser;
-  final DatabaseServiceUser? _userService;
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
 
-  DashboardScreen({super.key})
-    : _userService = (FirebaseAuth.instance.currentUser != null)
-          ? DatabaseServiceUser(FirebaseAuth.instance.currentUser!.uid)
-          : null;
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final User? currentUser = FirebaseAuth.instance.currentUser;
+  DatabaseServiceUser? _userService;
+
+  final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _userService = (FirebaseAuth.instance.currentUser != null)
+        ? DatabaseServiceUser(FirebaseAuth.instance.currentUser!.uid)
+        : null;
+    if (currentUser != null) {
+      _authService.saveFCMToken(currentUser!.uid);
+      _saveUserToPrefs(currentUser!.uid);
+    }
+  }
+
+  Future<void> _saveUserToPrefs(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_uid', uid);
+    print("✅ Đã lưu User UID vào SharedPreferences: $uid");
+  }
+
+  // Hàm kiểm tra cảnh báo và hiển thị Local Notification
+  void _checkForAlerts(SleepEntry entry) {
+    String? alertTitle;
+    String? alertBody;
+    Color? alertColor;
+
+    // KIỂM TRA CẢNH BÁO
+    if (entry.isCrying == true) {
+      alertTitle = "CẢNH BÁO KHÓC!";
+      alertBody = "Bé đang khóc! Hãy kiểm tra ngay.";
+      alertColor = Colors.orange;
+    } else if (entry.notiPosition == true) {
+      alertTitle = "CẢNH BÁO TƯ THẾ!";
+      alertBody = "Bé nằm sấp quá lâu! Hãy điều chỉnh tư thế.";
+      alertColor = Colors.red;
+    } else if (entry.babyTemp != null &&
+        (entry.babyTemp! < 35 || entry.babyTemp! > 37.5)) {
+      alertTitle = "CẢNH BÁO NHIỆT ĐỘ!";
+      alertBody =
+          "Nhiệt độ bé bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
+      alertColor = Colors.red;
+    }
+
+    if (alertTitle != null && mounted) {
+      flutterLocalNotificationsPlugin.show(
+        0,
+        alertTitle,
+        alertBody,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            color: alertColor,
+          ),
+        ),
+      );
+    }
+  }
 
   Future<String?> _getDeviceId() async {
     if (_userService == null) return null;
-    return await _userService.getDeviceId();
+    return await _userService!.getDeviceId();
   }
 
   @override
@@ -61,7 +130,7 @@ class DashboardScreen extends StatelessWidget {
                               child: const Icon(
                                 Icons.child_care,
                                 color: Colors.white,
-                                size: 28,
+                                size: 32,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -102,10 +171,19 @@ class DashboardScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
-                          onPressed: () async =>
-                              FirebaseAuth.instance.signOut(),
-                          icon: const Icon(Icons.logout, color: Colors.white),
-                          tooltip: "Đăng xuất",
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const SettingsScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.settings,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                          tooltip: "Cài đặt",
                         ),
                       ),
                     ],
@@ -139,6 +217,8 @@ class DashboardScreen extends StatelessWidget {
               if (!snapshot.hasData || entry == null) {
                 return _buildLoadingState("Đang tải dữ liệu thiết bị...");
               }
+
+              _checkForAlerts(entry);
 
               return _buildDashboardContent(
                 context,
@@ -175,7 +255,6 @@ class DashboardScreen extends StatelessWidget {
     DataService dataService,
     String? deviceId,
   ) {
-    // >>> ĐÃ LOẠI BỎ Stack VÀ _buildAlertsOverlay <<<
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -342,6 +421,7 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
 
+        // Biểu đồ lịch sử
         StreamBuilder<List<SleepEntry>>(
           stream: dataService.historyStream,
           builder: (context, snapshot) {

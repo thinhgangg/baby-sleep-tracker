@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseDatabase _db = FirebaseDatabase.instance;
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
   FirebaseDatabase get db => _db;
   User? get currentUser => _auth.currentUser;
@@ -64,11 +66,17 @@ class AuthService {
     required String deviceId,
     required String phoneNumber,
   }) async {
-    // Ghi dữ liệu vào node users/{UID}
-    await _db.ref('users/$uid').set({
+    await _db.ref('users/$uid').update({
       'deviceId': deviceId.trim(),
       'phone': phoneNumber,
     });
+  }
+
+  Future<void> saveFCMToken(String uid) async {
+    final fcmToken = await _fcm.getToken();
+    if (fcmToken != null) {
+      await _db.ref('users/$uid').update({'fcmToken': fcmToken});
+    }
   }
 
   // 4. KIỂM TRA DEVICE ID
