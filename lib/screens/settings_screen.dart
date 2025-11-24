@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'alert_settings_screen.dart';
 
 const String _monitoringKey = 'isMonitoringEnabled';
 
@@ -92,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           title: const Text(
             'Đăng xuất?',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
           ),
           content: const Text('Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?'),
           actions: [
@@ -103,9 +104,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[50],
-                foregroundColor: Colors.red,
-                elevation: 0,
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                elevation: 2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -206,6 +207,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             children: [
               _buildSectionHeader("CHỨC NĂNG"),
+              _buildAlertSettingsCard(),
+              const SizedBox(height: 16),
               _buildMonitoringCard(),
 
               const SizedBox(height: 24),
@@ -383,6 +386,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   fontWeight: FontWeight.w500,
                   color: Colors.red,
                 ),
+              ),
+              const Spacer(),
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlertSettingsCard() {
+    return AppCard(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AlertSettingsScreen(),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.tune, color: Colors.blue, size: 22),
+              ),
+              const SizedBox(width: 16),
+              const Text(
+                "Cấu hình cảnh báo",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),
               Icon(Icons.chevron_right, color: Colors.grey[400]),

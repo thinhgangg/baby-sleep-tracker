@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:baby_sleep_tracker/screens/settings_screen.dart';
 import 'package:baby_sleep_tracker/widgets/app_card.dart';
 import 'package:baby_sleep_tracker/widgets/sleep_chart.dart';
 import 'package:baby_sleep_tracker/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -12,6 +15,7 @@ import '../services/data_service.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/data_service_user.dart';
+import '../models/alert_settings.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,6 +27,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
   DatabaseServiceUser? _userService;
+
+  StreamSubscription<DatabaseEvent>? _settingsSub;
+  AlertSettings _currentSettings = AlertSettings();
 
   final AuthService _authService = AuthService();
 
@@ -36,6 +43,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _authService.saveFCMToken(currentUser!.uid);
       _saveUserToPrefs(currentUser!.uid);
     }
+    _listenToSettings();
+  }
+
+  void _listenToSettings() {
+    if (currentUser == null) return;
+    final settingsRef = FirebaseDatabase.instance.ref(
+      'users/${currentUser!.uid}/settings',
+    );
+    _settingsSub = settingsRef.onValue.listen((event) {
+      if (event.snapshot.exists) {
+        if (mounted) {
+          setState(() {
+            _currentSettings = AlertSettings.fromMap(
+              event.snapshot.value as Map?,
+            );
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _settingsSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _saveUserToPrefs(String uid) async {
@@ -60,10 +92,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       alertBody = "Bé nằm sấp quá lâu! Hãy điều chỉnh tư thế.";
       alertColor = Colors.red;
     } else if (entry.babyTemp != null &&
-        (entry.babyTemp! < 35 || entry.babyTemp! > 37.5)) {
+        (entry.babyTemp! < _currentSettings.minBabyTemp ||
+            entry.babyTemp! > _currentSettings.maxBabyTemp)) {
       alertTitle = "CẢNH BÁO NHIỆT ĐỘ!";
       alertBody =
           "Nhiệt độ bé bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
+      alertColor = Colors.red;
+    } else if (entry.envTemp != null &&
+        (entry.envTemp! < _currentSettings.minEnvTemp ||
+            entry.envTemp! > _currentSettings.maxEnvTemp)) {
+      alertTitle = "CẢNH BÁO NHIỆT ĐỘ PHÒNG!";
+      alertBody =
+          "Nhiệt độ phòng bất thường (${entry.envTemp}°C)! Hãy kiểm tra ngay.";
+      alertColor = Colors.red;
+    } else if (entry.envHum != null &&
+        (entry.envHum! < _currentSettings.minHum ||
+            entry.envHum! > _currentSettings.maxHum)) {
+      alertTitle = "CẢNH BÁO ĐỘ ẨM PHÒNG!";
+      alertBody =
+          "Độ ẩm phòng bất thường (${entry.envHum}%)! Hãy kiểm tra ngay.";
       alertColor = Colors.red;
     }
 
@@ -382,7 +429,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         value: "${entry.babyTemp}°C",
                         color:
                             entry.babyTemp != null &&
-                                (entry.babyTemp! < 35 || entry.babyTemp! > 37.5)
+                                (entry.babyTemp! <
+                                        _currentSettings.minBabyTemp ||
+                                    entry.babyTemp! >
+                                        _currentSettings.maxBabyTemp)
                             ? Colors.red
                             : Colors.green,
                       ),
@@ -399,7 +449,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         value: "${entry.envTemp}°C",
                         color:
                             entry.envTemp != null &&
-                                (entry.envTemp! < 20 || entry.envTemp! > 35)
+                                (entry.envTemp! < _currentSettings.minEnvTemp ||
+                                    entry.envTemp! >
+                                        _currentSettings.maxEnvTemp)
                             ? Colors.red
                             : Colors.green,
                       ),
@@ -412,7 +464,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         value: "${entry.envHum}%",
                         color:
                             entry.envHum != null &&
-                                (entry.envHum! < 30 || entry.envHum! > 70)
+                                (entry.envHum! < _currentSettings.minHum ||
+                                    entry.envHum! > _currentSettings.maxHum)
                             ? Colors.red
                             : Colors.green,
                       ),
