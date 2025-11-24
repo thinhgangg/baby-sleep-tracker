@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:baby_sleep_tracker/screens/settings_screen.dart';
 import 'package:baby_sleep_tracker/widgets/app_card.dart';
 import 'package:baby_sleep_tracker/widgets/sleep_chart.dart';
@@ -11,10 +10,11 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/data_service.dart';
 import 'package:intl/intl.dart';
+import '../services/data_service.dart';
 import '../services/auth_service.dart';
 import '../services/data_service_user.dart';
+import '../services/notification_prefs.dart';
 import '../models/alert_settings.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -33,6 +33,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final AuthService _authService = AuthService();
 
+  bool _allowCrying = true;
+  bool _allowPosition = true;
+  bool _allowTemp = true;
+
   @override
   void initState() {
     super.initState();
@@ -44,8 +48,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _saveUserToPrefs(currentUser!.uid);
     }
     _listenToSettings();
+    _loadNotificationPrefs();
   }
 
+  // alert settings
   void _listenToSettings() {
     if (currentUser == null) return;
     final settingsRef = FirebaseDatabase.instance.ref(
@@ -70,6 +76,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
+  // notification prefs
+  Future<void> _loadNotificationPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _allowCrying =
+            prefs.getBool(NotificationPrefs.keyNotifyCrying) ??
+            NotificationPrefs.defaultCrying;
+        _allowPosition =
+            prefs.getBool(NotificationPrefs.keyNotifyPosition) ??
+            NotificationPrefs.defaultPosition;
+        _allowTemp =
+            prefs.getBool(NotificationPrefs.keyNotifyTemp) ??
+            NotificationPrefs.defaultTemp;
+      });
+    }
+  }
+
   Future<void> _saveUserToPrefs(String uid) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_uid', uid);
@@ -83,21 +107,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color? alertColor;
 
     // KIỂM TRA CẢNH BÁO
-    if (entry.isCrying == true) {
+    if (entry.isCrying == true && _allowCrying) {
       alertTitle = "CẢNH BÁO KHÓC!";
       alertBody = "Bé đang khóc! Hãy kiểm tra ngay.";
       alertColor = Colors.orange;
-    } else if (entry.notiPosition == true) {
+    } else if (entry.notiPosition == true && _allowPosition) {
       alertTitle = "CẢNH BÁO TƯ THẾ!";
       alertBody = "Bé nằm sấp quá lâu! Hãy điều chỉnh tư thế.";
       alertColor = Colors.red;
     } else if (entry.babyTemp != null &&
         (entry.babyTemp! < _currentSettings.minBabyTemp ||
             entry.babyTemp! > _currentSettings.maxBabyTemp)) {
-      alertTitle = "CẢNH BÁO NHIỆT ĐỘ!";
-      alertBody =
-          "Nhiệt độ bé bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
-      alertColor = Colors.red;
+      if (_allowTemp) {
+        alertTitle = "CẢNH BÁO NHIỆT ĐỘ!";
+        alertBody =
+            "Nhiệt độ bé bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
+        alertColor = Colors.red;
+      }
     } else if (entry.envTemp != null &&
         (entry.envTemp! < _currentSettings.minEnvTemp ||
             entry.envTemp! > _currentSettings.maxEnvTemp)) {
@@ -220,11 +246,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: IconButton(
                           onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const SettingsScreen(),
-                              ),
-                            );
+                            Navigator.of(context)
+                                .push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const SettingsScreen(),
+                                  ),
+                                )
+                                .then((_) {
+                                  if (mounted) {
+                                    _loadNotificationPrefs();
+                                    print(
+                                      "🔄 Đã cập nhật lại tùy chọn thông báo",
+                                    );
+                                  }
+                                });
                           },
                           icon: const Icon(
                             Icons.settings,

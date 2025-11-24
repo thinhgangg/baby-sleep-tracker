@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'alert_settings_screen.dart';
+import 'notification_settings_screen.dart';
 
 const String _monitoringKey = 'isMonitoringEnabled';
 
@@ -183,7 +184,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Text(
                               "Cài đặt",
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 letterSpacing: 0.5,
@@ -206,13 +207,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               vertical: 20.0,
             ),
             children: [
-              _buildSectionHeader("CHỨC NĂNG"),
-              _buildAlertSettingsCard(),
-              const SizedBox(height: 16),
+              // 1. Chạy nền
+              _buildSectionHeader("TRẠNG THÁI HOẠT ĐỘNG"),
               _buildMonitoringCard(),
 
               const SizedBox(height: 24),
 
+              // 2. Ngưỡng cảnh báo và thông báo
+              _buildSectionHeader("CẤU HÌNH CẢNH BÁO"),
+              _buildAlertSettingsCard(
+                title: "Ngưỡng nhiệt độ & độ ẩm",
+                subtitle: "Thiết lập giới hạn an toàn",
+                icon: Icons.tune,
+                color: Colors.blue,
+              ),
+              const SizedBox(height: 12),
+              _buildNotificationSettingCard(),
+
+              // 3. Tài khoản
               _buildSectionHeader("TÀI KHOẢN"),
               _buildLogoutCard(),
 
@@ -396,7 +408,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAlertSettingsCard() {
+  Widget _buildAlertSettingsCard({
+    String title = "Cấu hình ngưỡng cảnh báo",
+    String? subtitle,
+    IconData icon = Icons.tune,
+    Color color = Colors.blue,
+  }) {
     return AppCard(
       child: InkWell(
         onTap: () {
@@ -415,14 +432,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.tune, color: Colors.blue, size: 22),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ],
+              ),
+              const Spacer(),
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationSettingCard() {
+    return AppCard(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotificationSettingsScreen(),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.notifications_active,
+                  color: Colors.purple,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               const Text(
-                "Cấu hình cảnh báo",
+                "Cài đặt thông báo",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const Spacer(),

@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../firebase_options.dart';
 import '../models/alert_settings.dart';
+import '../services/notification_prefs.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -121,7 +122,7 @@ void onStart(ServiceInstance service) async {
             .limitToLast(1);
 
         _dataSubscription?.cancel();
-        _dataSubscription = dataQuery.onValue.listen((event) {
+        _dataSubscription = dataQuery.onValue.listen((event) async {
           final rawMap = event.snapshot.value as Map?;
           if (rawMap != null && rawMap.isNotEmpty) {
             final latestData = rawMap.values.first;
@@ -137,8 +138,26 @@ void onStart(ServiceInstance service) async {
   });
 }
 
-void _processSensorData(dynamic data, AlertSettings settings) {
+void _processSensorData(dynamic data, AlertSettings settings) async {
   if (data is! Map) return;
+
+  final prefs = await SharedPreferences.getInstance();
+
+  await prefs.reload();
+
+  final bool allowCrying =
+      prefs.getBool(NotificationPrefs.keyNotifyCrying) ??
+      NotificationPrefs.defaultCrying;
+  final bool allowPosition =
+      prefs.getBool(NotificationPrefs.keyNotifyPosition) ??
+      NotificationPrefs.defaultPosition;
+  final bool allowTemp =
+      prefs.getBool(NotificationPrefs.keyNotifyTemp) ??
+      NotificationPrefs.defaultTemp;
+
+  print(
+    "⚙️ BG Check - Khóc: $allowCrying | Tư thế: $allowPosition | Nhiệt độ: $allowTemp",
+  );
 
   final bool isCrying = data['isCrying'] == true;
   final bool notiPosition = data['notiPosition'] == true;
@@ -146,22 +165,24 @@ void _processSensorData(dynamic data, AlertSettings settings) {
   final double? envTemp = (data['environmentTemperature'] as num?)?.toDouble();
   final double? envHum = (data['environmentHumidity'] as num?)?.toDouble();
 
-  if (isCrying) {
+  if (isCrying && allowCrying) {
     _showAlarmNotification(
       "CẢNH BÁO KHÓC!",
       "Bé đang khóc! Hãy kiểm tra ngay.",
     );
-  } else if (notiPosition) {
+  } else if (notiPosition && allowPosition) {
     _showAlarmNotification(
       "CẢNH BÁO TƯ THẾ!",
       "Bé nằm sấp quá lâu! Hãy điều chỉnh tư thế.",
     );
   } else if (babyTemp != null &&
       (babyTemp < settings.minBabyTemp || babyTemp > settings.maxBabyTemp)) {
-    _showAlarmNotification(
-      "CẢNH BÁO NHIỆT ĐỘ!",
-      "Nhiệt độ bé bất thường ($babyTemp°C)! Hãy kiểm tra ngay.",
-    );
+    if (allowTemp) {
+      _showAlarmNotification(
+        "CẢNH BÁO NHIỆT ĐỘ!",
+        "Nhiệt độ bé bất thường ($babyTemp°C)! Hãy kiểm tra ngay.",
+      );
+    }
   } else if (envTemp != null &&
       (envTemp < settings.minEnvTemp || envTemp > settings.maxEnvTemp)) {
     _showAlarmNotification(

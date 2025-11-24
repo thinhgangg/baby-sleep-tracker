@@ -251,9 +251,9 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
                             Text(
-                              "Cấu hình cảnh báo",
+                              "Ngưỡng nhiệt độ & độ ẩm",
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 letterSpacing: 0.5,
@@ -656,7 +656,6 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.save_rounded, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   _isSaving ? "Đang lưu..." : "Lưu thay đổi",
