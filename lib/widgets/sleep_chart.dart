@@ -32,7 +32,30 @@ class SleepLineChart extends StatelessWidget {
       height: 200,
       child: LineChart(
         LineChartData(
-          titlesData: const FlTitlesData(show: false),
+          titlesData: FlTitlesData(
+            show: true,
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 45,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toStringAsFixed(2),
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  );
+                },
+              ),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            bottomTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
           borderData: FlBorderData(show: true),
           gridData: const FlGridData(show: true),
           lineBarsData: [

@@ -1,16 +1,21 @@
+import 'dart:async';
 import 'package:baby_sleep_tracker/screens/settings_screen.dart';
 import 'package:baby_sleep_tracker/widgets/app_card.dart';
 import 'package:baby_sleep_tracker/widgets/sleep_chart.dart';
 import 'package:baby_sleep_tracker/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/data_service.dart';
 import 'package:intl/intl.dart';
+import '../services/data_service.dart';
 import '../services/auth_service.dart';
 import '../services/data_service_user.dart';
+import '../services/notification_prefs.dart';
+import '../models/alert_settings.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,7 +28,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
   DatabaseServiceUser? _userService;
 
+  StreamSubscription<DatabaseEvent>? _settingsSub;
+  AlertSettings _currentSettings = AlertSettings();
+
   final AuthService _authService = AuthService();
+
+  bool _allowCrying = true;
+  bool _allowPosition = true;
+  bool _allowTemp = true;
 
   @override
   void initState() {
@@ -34,6 +46,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (currentUser != null) {
       _authService.saveFCMToken(currentUser!.uid);
       _saveUserToPrefs(currentUser!.uid);
+    }
+    _listenToSettings();
+    _loadNotificationPrefs();
+  }
+
+  // alert settings
+  void _listenToSettings() {
+    if (currentUser == null) return;
+    final settingsRef = FirebaseDatabase.instance.ref(
+      'users/${currentUser!.uid}/settings',
+    );
+    _settingsSub = settingsRef.onValue.listen((event) {
+      if (event.snapshot.exists) {
+        if (mounted) {
+          setState(() {
+            _currentSettings = AlertSettings.fromMap(
+              event.snapshot.value as Map?,
+            );
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _settingsSub?.cancel();
+    super.dispose();
+  }
+
+  // notification prefs
+  Future<void> _loadNotificationPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _allowCrying =
+            prefs.getBool(NotificationPrefs.keyNotifyCrying) ??
+            NotificationPrefs.defaultCrying;
+        _allowPosition =
+            prefs.getBool(NotificationPrefs.keyNotifyPosition) ??
+            NotificationPrefs.defaultPosition;
+        _allowTemp =
+            prefs.getBool(NotificationPrefs.keyNotifyTemp) ??
+            NotificationPrefs.defaultTemp;
+      });
     }
   }
 
@@ -50,19 +107,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color? alertColor;
 
     // KIỂM TRA CẢNH BÁO
-    if (entry.isCrying == true) {
+    if (entry.isCrying == true && _allowCrying) {
       alertTitle = "CẢNH BÁO KHÓC!";
       alertBody = "Bé đang khóc! Hãy kiểm tra ngay.";
       alertColor = Colors.orange;
-    } else if (entry.notiPosition == true) {
+    } else if (entry.notiPosition == true && _allowPosition) {
       alertTitle = "CẢNH BÁO TƯ THẾ!";
       alertBody = "Bé nằm sấp quá lâu! Hãy điều chỉnh tư thế.";
       alertColor = Colors.red;
     } else if (entry.babyTemp != null &&
-        (entry.babyTemp! < 35 || entry.babyTemp! > 37.5)) {
-      alertTitle = "CẢNH BÁO NHIỆT ĐỘ!";
+        (entry.babyTemp! < _currentSettings.minBabyTemp ||
+            entry.babyTemp! > _currentSettings.maxBabyTemp)) {
+      if (_allowTemp) {
+        alertTitle = "CẢNH BÁO NHIỆT ĐỘ!";
+        alertBody =
+            "Nhiệt độ bé bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
+        alertColor = Colors.red;
+      }
+    } else if (entry.envTemp != null &&
+        (entry.envTemp! < _currentSettings.minEnvTemp ||
+            entry.envTemp! > _currentSettings.maxEnvTemp)) {
+      alertTitle = "CẢNH BÁO NHIỆT ĐỘ PHÒNG!";
       alertBody =
-          "Nhiệt độ bé bất thường (${entry.babyTemp}°C)! Hãy kiểm tra ngay.";
+          "Nhiệt độ phòng bất thường (${entry.envTemp}°C)! Hãy kiểm tra ngay.";
+      alertColor = Colors.red;
+    } else if (entry.envHum != null &&
+        (entry.envHum! < _currentSettings.minHum ||
+            entry.envHum! > _currentSettings.maxHum)) {
+      alertTitle = "CẢNH BÁO ĐỘ ẨM PHÒNG!";
+      alertBody =
+          "Độ ẩm phòng bất thường (${entry.envHum}%)! Hãy kiểm tra ngay.";
       alertColor = Colors.red;
     }
 
@@ -172,11 +246,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: IconButton(
                           onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const SettingsScreen(),
-                              ),
-                            );
+                            Navigator.of(context)
+                                .push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const SettingsScreen(),
+                                  ),
+                                )
+                                .then((_) {
+                                  if (mounted) {
+                                    _loadNotificationPrefs();
+                                    print(
+                                      "🔄 Đã cập nhật lại tùy chọn thông báo",
+                                    );
+                                  }
+                                });
                           },
                           icon: const Icon(
                             Icons.settings,
@@ -284,14 +368,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
-                            Icons.bar_chart,
+                            Icons.podcasts,
                             color: Color(0xFF667EEA),
                             size: 24,
                           ),
                         ),
                         const SizedBox(width: 14),
                         const Text(
-                          "Trạng thái hiện tại",
+                          "TRẠNG THÁI HIỆN TẠI",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -337,7 +421,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.bedtime,
+                        icon: entry.status == "sleeping"
+                            ? Icons.bedtime
+                            : Icons.wb_sunny,
                         label: "Trạng thái",
                         value: entry.status == "sleeping" ? "Ngủ" : "Thức",
                         color: entry.status == "sleeping"
@@ -348,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.child_care,
+                        icon: Icons.volume_up,
                         label: "Khóc",
                         value: entry.isCrying ? "Có" : "Không",
                         color: entry.isCrying ? Colors.red : Colors.green,
@@ -361,7 +447,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.airline_seat_recline_normal,
+                        icon: Icons.accessibility_new,
                         label: "Tư thế",
                         value: entry.position == "prone"
                             ? "Nằm sấp"
@@ -379,7 +465,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         value: "${entry.babyTemp}°C",
                         color:
                             entry.babyTemp != null &&
-                                (entry.babyTemp! < 35 || entry.babyTemp! > 37.5)
+                                (entry.babyTemp! <
+                                        _currentSettings.minBabyTemp ||
+                                    entry.babyTemp! >
+                                        _currentSettings.maxBabyTemp)
                             ? Colors.red
                             : Colors.green,
                       ),
@@ -391,12 +480,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.device_thermostat,
+                        icon: Icons.thermostat_auto,
                         label: "Nhiệt độ phòng",
                         value: "${entry.envTemp}°C",
                         color:
                             entry.envTemp != null &&
-                                (entry.envTemp! < 20 || entry.envTemp! > 35)
+                                (entry.envTemp! < _currentSettings.minEnvTemp ||
+                                    entry.envTemp! >
+                                        _currentSettings.maxEnvTemp)
                             ? Colors.red
                             : Colors.green,
                       ),
@@ -404,12 +495,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatusItem(
-                        icon: Icons.water_drop,
+                        icon: Icons.opacity,
                         label: "Độ ẩm",
                         value: "${entry.envHum}%",
                         color:
                             entry.envHum != null &&
-                                (entry.envHum! < 30 || entry.envHum! > 70)
+                                (entry.envHum! < _currentSettings.minHum ||
+                                    entry.envHum! > _currentSettings.maxHum)
                             ? Colors.red
                             : Colors.green,
                       ),
@@ -431,7 +523,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 const SizedBox(height: 24),
                 _buildChartSection(
-                  "Nhiệt độ bé (°C)",
+                  "NHIỆT ĐỘ BÉ (°C)",
                   Icons.thermostat,
                   Colors.red,
                   SleepLineChart(
@@ -443,8 +535,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 24),
                 _buildChartSection(
-                  "Nhiệt độ phòng (°C)",
-                  Icons.device_thermostat,
+                  "NHIỆT ĐỘ PHÒNG (°C)",
+                  Icons.thermostat_auto,
                   Colors.orange,
                   SleepLineChart(
                     data: history,
@@ -455,8 +547,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 24),
                 _buildChartSection(
-                  "Độ ẩm phòng (%)",
-                  Icons.water_drop,
+                  "ĐỘ ẨM PHÒNG (%)",
+                  Icons.opacity,
                   Colors.blue,
                   SleepLineChart(
                     data: history,
@@ -493,7 +585,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
-                        Icons.link,
+                        Icons.qr_code,
                         color: Color(0xFF667EEA),
                         size: 24,
                       ),
@@ -514,7 +606,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 const SizedBox(height: 20),
 
-                // Container chứa mã và nút copy
+                // Container chứa QR code và nút copy
+                Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!, width: 1),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: QrImageView(
+                      data: 'babysleep://link/device?id=$deviceId',
+                      version: QrVersions.auto,
+                      size: 200.0,
+                      gapless: false,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF667EEA),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF764BA2),
+                      ),
+                      embeddedImage: const AssetImage('assets/logo.png'),
+                      embeddedImageStyle: QrEmbeddedImageStyle(
+                        size: const Size(40, 40),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Mã ID thô và nút Copy
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -532,7 +656,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Mã của bạn",
+                              "ID thiết bị",
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
@@ -561,27 +685,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ? () {
                                   Clipboard.setData(
                                     ClipboardData(text: deviceId),
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text('Đã sao chép mã vào clipboard'),
-                                        ],
-                                      ),
-                                      backgroundColor: Colors.green[700],
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      duration: const Duration(seconds: 2),
-                                    ),
                                   );
                                 }
                               : null,
@@ -623,7 +726,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        "Chia sẻ mã này cho người dùng khác để liên kết cùng thiết bị và theo dõi dữ liệu chung.",
+                        "Quét mã QR hoặc chia sẻ ID thiết bị để người thân liên kết với thiết bị theo dõi.",
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 13,
