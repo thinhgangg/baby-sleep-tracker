@@ -665,7 +665,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 6),
                             const Text(
-                              "••••••••••",
+                              "••••••••",
                               style: TextStyle(
                                 fontSize: 20,
                                 letterSpacing: 2.5,
