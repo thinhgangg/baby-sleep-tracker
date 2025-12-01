@@ -7,12 +7,12 @@ class AlertSettings {
   double maxHum;
 
   AlertSettings({
-    this.minBabyTemp = 36.0,
+    this.minBabyTemp = 36.5,
     this.maxBabyTemp = 37.5,
     this.minEnvTemp = 20.0,
     this.maxEnvTemp = 30.0,
     this.minHum = 40.0,
-    this.maxHum = 70.0,
+    this.maxHum = 60.0,
   });
 
   factory AlertSettings.fromMap(Map<dynamic, dynamic>? data) {
