@@ -101,4 +101,9 @@ class AuthService {
         return 'Lỗi Firebase: ${e.message}';
     }
   }
+
+  Future<bool> checkDeviceExist(String deviceId) async {
+    final snapshot = await _db.ref('sleepData/$deviceId').limitToLast(1).get();
+    return snapshot.exists;
+  }
 }

@@ -12,6 +12,7 @@ class QrScannerScreen extends StatefulWidget {
 class _QrScannerScreenState extends State<QrScannerScreen>
     with SingleTickerProviderStateMixin {
   bool _isScanned = false;
+  bool _isShowingError = false;
   late MobileScannerController _controller;
   late AnimationController _animationController;
   late Animation<double> _animation;
@@ -46,7 +47,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera view - Full screen
+          // camera preview
           MobileScanner(
             controller: _controller,
             onDetect: (capture) {
@@ -54,15 +55,38 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               if (barcodes.isNotEmpty && !_isScanned) {
                 final String? code = barcodes.first.rawValue;
                 if (code != null) {
-                  setState(() => _isScanned = true);
-                  _controller.stop();
-                  widget.onScanSuccess(code);
+                  if (code.startsWith('babysleep://link/device?id=')) {
+                    setState(() => _isScanned = true);
+                    _controller.stop();
+
+                    Future.delayed(const Duration(milliseconds: 800), () {
+                      if (mounted) {
+                        widget.onScanSuccess(code);
+                      }
+                    });
+                  } else {
+                    if (!_isShowingError) {
+                      _isShowingError = true;
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Mã QR không đúng định dạng của ứng dụng!',
+                              ),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          )
+                          .closed
+                          .then((_) => _isShowingError = false);
+                    }
+                  }
                 }
               }
             },
           ),
 
-          // Overlay tối phủ ngoài khung quét
+          // overlay
           ColorFiltered(
             colorFilter: ColorFilter.mode(
               Colors.black.withOpacity(0.6),
@@ -90,7 +114,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ),
           ),
 
-          // Scanning frame với animation
+          // scanning frame with animation
           Center(
             child: Container(
               width: 280,
@@ -142,7 +166,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ),
           ),
 
-          // AppBar gradient tùy chỉnh
+          // top bar with back button and title
           Positioned(
             top: 0,
             left: 0,
@@ -190,7 +214,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ),
           ),
 
-          // Hướng dẫn và thông tin
+          // bottom bar with instructions
           Positioned(
             bottom: 0,
             left: 0,
@@ -240,7 +264,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ),
           ),
 
-          // Loading indicator khi đã quét
+          // success overlay
           if (_isScanned)
             Container(
               color: Colors.black.withOpacity(0.7),
