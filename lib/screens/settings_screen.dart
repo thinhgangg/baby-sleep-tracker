@@ -6,8 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'alert_settings_screen.dart';
 import 'notification_settings_screen.dart';
 
-const String _monitoringKey = 'isMonitoringEnabled';
-
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -19,6 +17,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isMonitoringEnabled = false;
   bool _isLoading = false;
 
+  String get _userMonitoringKey {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 'isMonitoringEnabled_default';
+    return 'isMonitoringEnabled_$uid';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -29,17 +33,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _isMonitoringEnabled = prefs.getBool(_monitoringKey) ?? true;
+      _isMonitoringEnabled = prefs.getBool(_userMonitoringKey) ?? true;
     });
   }
 
-  Future<void> _toggleMonitoring(bool newValue) async {
+  Future<void> _toggleMonitoring(bool newValue, {bool silent = false}) async {
     setState(() => _isLoading = true);
 
     await Future.delayed(const Duration(milliseconds: 300));
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_monitoringKey, newValue);
+
+    await prefs.setBool(_userMonitoringKey, newValue);
 
     final service = FlutterBackgroundService();
     if (newValue) {
@@ -55,12 +60,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isLoading = false;
     });
 
-    _showSnackBar(
-      message: newValue
-          ? 'Đã bật cho phép chạy nền'
-          : 'Đã tắt cho phép chạy nền',
-      isSuccess: newValue,
-    );
+    if (!silent) {
+      _showSnackBar(
+        message: newValue
+            ? 'Đã bật cho phép chạy nền'
+            : 'Đã tắt cho phép chạy nền',
+        isSuccess: newValue,
+      );
+    }
   }
 
   void _showSnackBar({required String message, required bool isSuccess}) {
@@ -122,9 +129,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirm == true) {
       setState(() => _isLoading = true);
 
-      if (_isMonitoringEnabled) {
-        await _toggleMonitoring(false);
-      }
+      final service = FlutterBackgroundService();
+      service.invoke("stopService");
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_uid');

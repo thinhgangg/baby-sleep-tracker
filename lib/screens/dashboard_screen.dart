@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,6 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     _listenToSettings();
     _loadNotificationPrefs();
+    _restoreServiceState();
   }
 
   // alert settings
@@ -98,6 +100,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_uid', uid);
     print("✅ Đã lưu User UID vào SharedPreferences: $uid");
+  }
+
+  // Khôi phục trạng thái Service khi mở app
+  Future<void> _restoreServiceState() async {
+    if (currentUser == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final String userKey = 'isMonitoringEnabled_${currentUser!.uid}';
+
+    final bool shouldRun = prefs.getBool(userKey) ?? true;
+
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
+
+    if (shouldRun && !isRunning) {
+      print("🔄 Dashboard: Khôi phục Service cho user ${currentUser!.uid}");
+      await service.startService();
+    } else if (!shouldRun && isRunning) {
+      service.invoke("stopService");
+    }
   }
 
   // Hàm kiểm tra cảnh báo và hiển thị Local Notification
