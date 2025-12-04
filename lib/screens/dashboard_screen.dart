@@ -48,9 +48,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _authService.saveFCMToken(currentUser!.uid);
       _saveUserToPrefs(currentUser!.uid);
     }
+    _startBackgroundServiceIfNeeded();
     _listenToSettings();
     _loadNotificationPrefs();
-    _restoreServiceState();
   }
 
   // alert settings
@@ -103,22 +103,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // Khôi phục trạng thái Service khi mở app
-  Future<void> _restoreServiceState() async {
+  Future<void> _startBackgroundServiceIfNeeded() async {
     if (currentUser == null) return;
 
     final prefs = await SharedPreferences.getInstance();
     final String userKey = 'isMonitoringEnabled_${currentUser!.uid}';
-
     final bool shouldRun = prefs.getBool(userKey) ?? true;
 
     final service = FlutterBackgroundService();
     final isRunning = await service.isRunning();
 
-    if (shouldRun && !isRunning) {
-      print("🔄 Dashboard: Khôi phục Service cho user ${currentUser!.uid}");
-      await service.startService();
-    } else if (!shouldRun && isRunning) {
-      service.invoke("stopService");
+    if (shouldRun) {
+      if (!isRunning) {
+        print("🚀 Dashboard: Đang khởi động Background Service...");
+        await service.startService();
+      }
+    } else {
+      if (isRunning) {
+        service.invoke("stopService");
+      }
     }
   }
 

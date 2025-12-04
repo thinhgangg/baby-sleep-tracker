@@ -32,14 +32,14 @@ Future<void> initializeService() async {
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      autoStart: true,
+      autoStart: false,
       isForegroundMode: true,
       notificationChannelId: 'my_foreground',
       initialNotificationTitle: 'Baby Sleep Tracker',
       initialNotificationContent: 'Đang chờ kết nối...',
       foregroundServiceNotificationId: 888,
     ),
-    iosConfiguration: IosConfiguration(autoStart: true, onForeground: onStart),
+    iosConfiguration: IosConfiguration(autoStart: false, onForeground: onStart),
   );
 }
 
