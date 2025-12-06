@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _authService.saveFCMToken(currentUser!.uid);
       _saveUserToPrefs(currentUser!.uid);
     }
+    _startBackgroundServiceIfNeeded();
     _listenToSettings();
     _loadNotificationPrefs();
   }
@@ -98,6 +100,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_uid', uid);
     print("✅ Đã lưu User UID vào SharedPreferences: $uid");
+  }
+
+  // Khôi phục trạng thái Service khi mở app
+  Future<void> _startBackgroundServiceIfNeeded() async {
+    if (currentUser == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final String userKey = 'isMonitoringEnabled_${currentUser!.uid}';
+    final bool shouldRun = prefs.getBool(userKey) ?? true;
+
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
+
+    if (shouldRun) {
+      if (!isRunning) {
+        print("🚀 Dashboard: Đang khởi động Background Service...");
+        await service.startService();
+      }
+    } else {
+      if (isRunning) {
+        service.invoke("stopService");
+      }
+    }
   }
 
   // Hàm kiểm tra cảnh báo và hiển thị Local Notification
@@ -531,6 +556,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: "Baby Temp",
                     valueGetter: (e) => e.babyTemp ?? 0,
                     lineColor: Colors.red,
+                    safeMin: _currentSettings.minBabyTemp,
+                    safeMax: _currentSettings.maxBabyTemp,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -543,6 +570,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: "Room Temp",
                     valueGetter: (e) => e.envTemp ?? 0,
                     lineColor: Colors.orange,
+                    safeMin: _currentSettings.minEnvTemp,
+                    safeMax: _currentSettings.maxEnvTemp,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -555,6 +584,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: "Humidity",
                     valueGetter: (e) => e.envHum ?? 0,
                     lineColor: Colors.blue,
+                    safeMin: _currentSettings.minHum,
+                    safeMax: _currentSettings.maxHum,
                   ),
                 ),
                 const SizedBox(height: 20),

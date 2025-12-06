@@ -201,6 +201,17 @@ class _AuthScreenState extends State<AuthScreen>
     setState(() => _loading = true);
 
     try {
+      final bool exists = await _authService.checkDeviceExist(deviceId);
+
+      if (!exists) {
+        setState(() => _loading = false);
+        _showSnackBar(
+          'Không tìm thấy thiết bị với ID: $deviceId. Vui lòng kiểm tra lại.',
+          isError: true,
+        );
+        return;
+      }
+
       final user = _authService.currentUser;
       if (user != null) {
         await _authService.registerDeviceId(
@@ -229,34 +240,12 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Future<void> _handleQrScan(BuildContext context, String rawData) async {
-    print("QR Raw Data: $rawData");
-    // Kiểm tra định dạng Deep Link
-    if (!rawData.startsWith('babysleep://link/device?id=')) {
-      _showSnackBar(
-        'Mã QR không hợp lệ hoặc không phải của ứng dụng.',
-        isError: true,
-      );
-      return;
-    }
+    Navigator.of(context).pop();
 
-    try {
-      final uri = Uri.parse(rawData);
-      final deviceId = uri.queryParameters['id'];
+    final uri = Uri.parse(rawData);
+    final deviceId = uri.queryParameters['id'];
 
-      if (deviceId == null || deviceId.isEmpty) {
-        _showSnackBar('Không tìm thấy ID thiết bị trong mã QR.', isError: true);
-        return;
-      }
-
-      // Đóng màn hình quét
-      if (mounted) Navigator.of(context).pop();
-
-      // Tiến hành đăng ký
-      await _registerDeviceAndComplete(deviceId);
-    } catch (e) {
-      print("Lỗi parse QR: $e");
-      _showSnackBar('Lỗi xử lý mã QR.', isError: true);
-    }
+    await _registerDeviceAndComplete(deviceId!);
   }
 
   // 4. MỞ MÀN HÌNH QUÉT
