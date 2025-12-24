@@ -161,9 +161,15 @@ void _processSensorData(dynamic data, AlertSettings settings) async {
 
   final bool isCrying = data['isCrying'] == true;
   final bool notiPosition = data['notiPosition'] == true;
-  final double? babyTemp = (data['babyTemperature'] as num?)?.toDouble();
-  final double? envTemp = (data['environmentTemperature'] as num?)?.toDouble();
-  final double? envHum = (data['environmentHumidity'] as num?)?.toDouble();
+  final double? babyTemp = data['babyTemperature'] != null
+      ? double.tryParse(data['babyTemperature'].toString())
+      : null;
+  final double? envTemp = data['environmentTemperature'] != null
+      ? double.tryParse(data['environmentTemperature'].toString())
+      : null;
+  final double? envHum = data['environmentHumidity'] != null
+      ? double.tryParse(data['environmentHumidity'].toString())
+      : null;
 
   if (isCrying && allowCrying) {
     _showAlarmNotification(

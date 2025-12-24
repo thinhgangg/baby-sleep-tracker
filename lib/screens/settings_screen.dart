@@ -156,8 +156,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    const Color(0xFF667EEA).withOpacity(0.8),
-                    const Color(0xFF764BA2).withOpacity(0.9),
+                    const Color(0xFF667EEA).withValues(alpha: 0.8),
+                    const Color(0xFF764BA2).withValues(alpha: 0.9),
                   ],
                 ),
               ),
@@ -168,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
@@ -258,7 +258,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         if (_isLoading)
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             child: const Center(
               child: CircularProgressIndicator(color: Colors.white),
             ),
@@ -295,8 +295,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -330,7 +330,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Switch.adaptive(
                   value: isActive,
                   onChanged: _toggleMonitoring,
-                  activeColor: Colors.green,
+                  activeTrackColor: Colors.green,
                 ),
               ],
             ),
@@ -340,8 +340,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isActive
-                  ? Colors.green.withOpacity(0.05)
-                  : Colors.orange.withOpacity(0.05),
+                  ? Colors.green.withValues(alpha: 0.05)
+                  : Colors.orange.withValues(alpha: 0.05),
               borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(12),
               ),
@@ -387,7 +387,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -438,7 +438,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 22),
@@ -491,7 +491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.1),
+                  color: Colors.purple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(

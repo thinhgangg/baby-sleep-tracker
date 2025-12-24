@@ -89,7 +89,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           // overlay
           ColorFiltered(
             colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.6),
+              Colors.black.withValues(alpha: 0.6),
               BlendMode.srcOut,
             ),
             child: Stack(
@@ -145,13 +145,15 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                             gradient: LinearGradient(
                               colors: [
                                 Colors.transparent,
-                                const Color(0xFF667EEA).withOpacity(0.8),
+                                const Color(0xFF667EEA).withValues(alpha: 0.8),
                                 Colors.transparent,
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF667EEA).withOpacity(0.6),
+                                color: const Color(
+                                  0xFF667EEA,
+                                ).withValues(alpha: 0.6),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -176,7 +178,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                  colors: [
+                    Colors.black.withValues(alpha: 0.7),
+                    Colors.transparent,
+                  ],
                 ),
               ),
               child: SafeArea(
@@ -224,7 +229,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+                  colors: [
+                    Colors.black.withValues(alpha: 0.8),
+                    Colors.transparent,
+                  ],
                 ),
               ),
               padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
@@ -234,15 +242,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.qr_code_scanner,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           size: 24,
                         ),
                         const SizedBox(width: 12),
@@ -250,7 +260,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                           child: Text(
                             'Đặt mã QR vào trong khung để quét',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
                             ),
@@ -267,7 +277,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           // success overlay
           if (_isScanned)
             Container(
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withValues(alpha: 0.7),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

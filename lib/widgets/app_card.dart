@@ -17,7 +17,7 @@ class AppCard extends StatelessWidget {
             blurRadius: 12,
             spreadRadius: 0,
             offset: const Offset(0, 6),
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
           ),
         ],
       ),

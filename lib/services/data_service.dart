@@ -48,16 +48,11 @@ class DataService {
       final rawData = event.snapshot.value;
       if (rawData is! Map) return null;
 
-      final dataMap = Map<String, dynamic>.from(rawData);
-
+      final dataMap = Map<dynamic, dynamic>.from(rawData);
       if (dataMap.isEmpty) return null;
 
-      final lastKey = dataMap.keys.last;
-      final lastEntry = dataMap[lastKey];
-
-      if (lastEntry is! Map) return null;
-
-      return SleepEntry.fromMap(Map<String, dynamic>.from(lastEntry));
+      final latestData = dataMap.values.first;
+      return SleepEntry.fromMap(Map<dynamic, dynamic>.from(latestData));
     });
   }
 
@@ -70,44 +65,20 @@ class DataService {
       final rawData = event.snapshot.value;
       if (rawData is! Map) return [];
 
-      final data = Map<String, dynamic>.from(rawData);
-
-      // Chuyển Map thành List of Map.entries để có thể sắp xếp
+      final data = Map<dynamic, dynamic>.from(rawData);
       final sortedEntries = data.entries.toList();
 
-      // Ta sắp xếp dựa trên timestamp được lưu trong value của mỗi entry
       sortedEntries.sort((a, b) {
         final timestampA = (a.value as Map)['timestamp'] ?? '';
         final timestampB = (b.value as Map)['timestamp'] ?? '';
-
-        try {
-          // So sánh DateTime để sắp xếp từ cũ nhất đến mới nhất
-          final dateA = DateTime.parse(timestampA);
-          final dateB = DateTime.parse(timestampB);
-          return dateA.compareTo(dateB);
-        } catch (e) {
-          // Trường hợp timestamp không hợp lệ, giữ nguyên thứ tự (hoặc ưu tiên cái có timestamp)
-          return timestampA.compareTo(timestampB);
-        }
+        return timestampA.compareTo(timestampB);
       });
 
-      return sortedEntries
-          .map((entry) {
-            final e = entry.value;
-            if (e is Map) {
-              return SleepEntry.fromMap(Map<String, dynamic>.from(e));
-            }
-            return SleepEntry(
-              timestamp: '',
-              status: 'N/A',
-              isCrying: false,
-              position: 'N/A',
-              notiPosition: false,
-            );
-          })
-          .toList()
-          .where((e) => e.timestamp.isNotEmpty)
-          .toList();
+      return sortedEntries.map((entry) {
+        return SleepEntry.fromMap(
+          Map<dynamic, dynamic>.from(entry.value as Map),
+        );
+      }).toList();
     });
   }
 }

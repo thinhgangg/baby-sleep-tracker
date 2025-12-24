@@ -450,10 +450,10 @@ class _AuthScreenState extends State<AuthScreen>
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFF667EEA).withOpacity(0.1),
+            color: const Color(0xFF667EEA).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF667EEA).withOpacity(0.3),
+              color: const Color(0xFF667EEA).withValues(alpha: 0.3),
               width: 2,
             ),
           ),
@@ -466,7 +466,7 @@ class _AuthScreenState extends State<AuthScreen>
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF667EEA).withOpacity(0.2),
+                      color: const Color(0xFF667EEA).withValues(alpha: 0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -509,7 +509,7 @@ class _AuthScreenState extends State<AuthScreen>
               backgroundColor: const Color(0xFF667EEA),
               foregroundColor: Colors.white,
               elevation: 4,
-              shadowColor: const Color(0xFF667EEA).withOpacity(0.4),
+              shadowColor: const Color(0xFF667EEA).withValues(alpha: 0.4),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -557,7 +557,7 @@ class _AuthScreenState extends State<AuthScreen>
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF667EEA),
               side: BorderSide(
-                color: const Color(0xFF667EEA).withOpacity(0.5),
+                color: const Color(0xFF667EEA).withValues(alpha: 0.5),
                 width: 1.5,
               ),
               shape: RoundedRectangleBorder(
@@ -600,7 +600,7 @@ class _AuthScreenState extends State<AuthScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF667EEA).withOpacity(0.1),
+                  color: const Color(0xFF667EEA).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -747,8 +747,8 @@ class _AuthScreenState extends State<AuthScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF667EEA).withOpacity(0.8),
-              const Color(0xFF764BA2).withOpacity(0.9),
+              const Color(0xFF667EEA).withValues(alpha: 0.8),
+              const Color(0xFF764BA2).withValues(alpha: 0.9),
             ],
           ),
         ),
@@ -791,7 +791,7 @@ class _AuthScreenState extends State<AuthScreen>
                         constraints: const BoxConstraints(maxWidth: 420),
                         child: Card(
                           elevation: 8,
-                          shadowColor: Colors.black.withOpacity(0.3),
+                          shadowColor: Colors.black.withValues(alpha: 0.3),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),
@@ -820,7 +820,7 @@ class _AuthScreenState extends State<AuthScreen>
                       Text(
                         "© 2025 Baby Sleep Tracker",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 12,
                         ),
                       ),
