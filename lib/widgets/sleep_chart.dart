@@ -98,7 +98,7 @@ class SleepLineChart extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: Colors.orange.withValues(alpha: 0.1),
               border: Border.all(color: Colors.orange, width: 1.5),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -252,8 +252,8 @@ class SleepLineChart extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        lineColor.withOpacity(0.3),
-                        lineColor.withOpacity(0.05),
+                        lineColor.withValues(alpha: 0.3),
+                        lineColor.withValues(alpha: 0.05),
                       ],
                     ),
                   ),
@@ -308,7 +308,7 @@ class SleepLineChart extends StatelessWidget {
                     return TouchedSpotIndicatorData(
                       FlLine(
                         color: (isOutlierPoint ? Colors.orange : lineColor)
-                            .withOpacity(0.5),
+                            .withValues(alpha: 0.5),
                         strokeWidth: 2,
                         dashArray: [5, 5],
                       ),
@@ -352,7 +352,7 @@ class SleepLineChart extends StatelessWidget {
       lines.add(
         HorizontalLine(
           y: safeMin!,
-          color: Colors.green.withOpacity(0.4),
+          color: Colors.green.withValues(alpha: 0.4),
           strokeWidth: 1.5,
           dashArray: [8, 4],
         ),
@@ -362,7 +362,7 @@ class SleepLineChart extends StatelessWidget {
       lines.add(
         HorizontalLine(
           y: safeMax!,
-          color: Colors.green.withOpacity(0.4),
+          color: Colors.green.withValues(alpha: 0.4),
           strokeWidth: 1.5,
           dashArray: [8, 4],
         ),

@@ -204,8 +204,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF667EEA).withOpacity(0.8),
-                const Color(0xFF764BA2).withOpacity(0.9),
+                const Color(0xFF667EEA).withValues(alpha: 0.8),
+                const Color(0xFF764BA2).withValues(alpha: 0.9),
               ],
             ),
           ),
@@ -223,7 +223,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
@@ -266,7 +266,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
@@ -321,14 +321,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return StreamBuilder<SleepEntry?>(
             stream: dataService.latestEntryStream,
             builder: (context, snapshot) {
-              final entry = snapshot.data;
+              // 1. Kiểm tra nếu có lỗi (để hiện lỗi đỏ thay vì xoay vòng)
+              if (snapshot.hasError) {
+                return Center(child: Text("Lỗi dữ liệu: ${snapshot.error}"));
+              }
 
-              if (!snapshot.hasData || entry == null) {
+              // 2. Kiểm tra trạng thái đang tải
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return _buildLoadingState("Đang tải dữ liệu thiết bị...");
               }
 
-              _checkForAlerts(entry);
+              final entry = snapshot.data;
 
+              // 3. Nếu dữ liệu null (Thiết bị mới chưa có data)
+              if (entry == null) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text("Thiết bị chưa gửi dữ liệu nào."),
+                      Text(
+                        "ID: $deviceId",
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              _checkForAlerts(entry);
               return _buildDashboardContent(
                 context,
                 entry,
@@ -386,8 +409,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                const Color(0xFF667EEA).withOpacity(0.15),
-                                const Color(0xFF764BA2).withOpacity(0.15),
+                                const Color(0xFF667EEA).withValues(alpha: 0.15),
+                                const Color(0xFF764BA2).withValues(alpha: 0.15),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
@@ -609,8 +632,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            const Color(0xFF667EEA).withOpacity(0.15),
-                            const Color(0xFF764BA2).withOpacity(0.15),
+                            const Color(0xFF667EEA).withValues(alpha: 0.15),
+                            const Color(0xFF764BA2).withValues(alpha: 0.15),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(12),
@@ -805,9 +828,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -848,8 +871,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        color.withOpacity(0.15),
-                        color.withOpacity(0.15),
+                        color.withValues(alpha: 0.15),
+                        color.withValues(alpha: 0.15),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(12),

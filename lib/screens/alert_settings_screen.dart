@@ -219,8 +219,8 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    const Color(0xFF667EEA).withOpacity(0.8),
-                    const Color(0xFF764BA2).withOpacity(0.9),
+                    const Color(0xFF667EEA).withValues(alpha: 0.8),
+                    const Color(0xFF764BA2).withValues(alpha: 0.9),
                   ],
                 ),
               ),
@@ -231,7 +231,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
@@ -343,7 +343,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
         ),
         if (_isSaving)
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             child: const Center(
               child: CircularProgressIndicator(color: Colors.white),
             ),
@@ -376,8 +376,8 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.blue.withOpacity(0.1),
-              Colors.purple.withOpacity(0.1),
+              Colors.blue.withValues(alpha: 0.1),
+              Colors.purple.withValues(alpha: 0.1),
             ],
           ),
           borderRadius: BorderRadius.circular(12),
@@ -388,7 +388,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.2),
+                color: Colors.blue.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -450,7 +450,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: iconColor, size: 24),
@@ -518,7 +518,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
                 activeTrackColor: iconColor,
                 inactiveTrackColor: Colors.grey[300],
                 thumbColor: iconColor,
-                overlayColor: iconColor.withOpacity(0.2),
+                overlayColor: iconColor.withValues(alpha: 0.2),
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
                 showValueIndicator: ShowValueIndicator.never,
@@ -571,9 +571,9 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -631,7 +631,7 @@ class _AlertSettingsScreenState extends State<AlertSettingsScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

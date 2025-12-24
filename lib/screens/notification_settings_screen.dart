@@ -93,8 +93,8 @@ class _NotificationSettingsScreenState
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF667EEA).withOpacity(0.8),
-                const Color(0xFF764BA2).withOpacity(0.9),
+                const Color(0xFF667EEA).withValues(alpha: 0.8),
+                const Color(0xFF764BA2).withValues(alpha: 0.9),
               ],
             ),
           ),
@@ -105,7 +105,7 @@ class _NotificationSettingsScreenState
                 children: [
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: IconButton(
@@ -226,7 +226,7 @@ class _NotificationSettingsScreenState
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: iconColor, size: 24),
@@ -258,7 +258,7 @@ class _NotificationSettingsScreenState
             Switch.adaptive(
               value: value,
               onChanged: onChanged,
-              activeColor: const Color(0xFF667EEA),
+              activeTrackColor: const Color(0xFF667EEA),
             ),
           ],
         ),
